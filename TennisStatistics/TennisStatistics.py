@@ -6,17 +6,17 @@ from bs4 import BeautifulSoup
 import pandas as pd
 #import unidecode
 import numpy as np
-import math
+#import math
 #from fractions import Fraction
-import re
-from datetime import datetime
+#import re
+#from datetime import datetime
 import time
 import random
 #import itertools
 #import collections.abc
-from lxml.html import fromstring
-from itertools import cycle
-import traceback
+#from lxml.html import fromstring
+#from itertools import cycle
+#import traceback
 #import requests.exceptions
 import os
 import warnings
