@@ -93,6 +93,21 @@ def appendDFToCSV_void(df, csvFilePath, sep=","):
     else:
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
+def getPlayersFromPage(mensATPranking,rankDate,startRank,endRank):
+    """
+    Extract all the player names from the rankings list
+    """
+
+    rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
+    content = get_html_content(mensATPranking)
+    html = BeautifulSoup(content, 'html.parser')
+    # Find all the players
+    
+    players = html.findAll('td', {'class', 'player-cell'})
+
+    return players
+
+
 if __name__ == '__main__':
     """
     Extract statistics for each player
@@ -131,11 +146,12 @@ if __name__ == '__main__':
         endRank = (page + 1) * 100
 
         # build the ranking page
-        rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
-        content = get_html_content(mensATPranking)
-        html = BeautifulSoup(content, 'html.parser')
-        # Find all the players
-        players = html.findAll('td', {'class', 'player-cell'})
+        #rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
+        #content = get_html_content(mensATPranking)
+        #html = BeautifulSoup(content, 'html.parser')
+        ## Find all the players
+        #players = html.findAll('td', {'class', 'player-cell'})
+        players = getPlayersFromPage(mensATPranking,rankDate,startRank,endRank)
 
         # Loop through each player profiles
         for player in players:
@@ -155,7 +171,8 @@ if __name__ == '__main__':
                 html = BeautifulSoup(content, 'html.parser')
 
                 # get the data for each tab
-
+                # create functions for each tab
+                # each function will need different configurations.
 
 
 
