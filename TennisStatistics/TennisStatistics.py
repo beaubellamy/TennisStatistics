@@ -108,6 +108,66 @@ def getPlayersFromPage(mensATPranking,rankDate,startRank,endRank):
     return players
 
 
+def playerProfile(url):
+
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+
+    statsTable = html.findAll('div', {'class', 'stat-value'})
+
+    carrerStats = {}
+
+    # Single stats
+
+    # Win Loss
+    wins = statsTable[1].parent.contents[1].text.split('-')[0]
+    carrerStats['Win'] = wins
+    loss = statsTable[1].parent.contents[1].text.split('-')[1]
+    carrerStats['Loss'] = loss
+    
+    # Titles
+    titles = statsTable[2].parent.contents[1].text
+    carrerStats['Titles'] = titles
+
+    # Prize money
+    prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
+    careerPrizeMoney =  prizeMoney.replace(',','')
+    carrerStats['Prize Money'] = careerPrizeMoney
+
+    # Tournaments
+    tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
+
+    for tournament in tournaments:
+        
+        tournamentTitle = tournament.find('td', {'class', 'title-content'}).contents[1].text
+        location = tournament.find('span', {'class', 'tourney-location'}).text.strip().split(',')[0]
+        tournamentDate =  tournament.find('span', {'class', 'tourney-dates'}).text.strip().split('-')[0].strip()
+        tournamentDetails =  tournament.findAll('span', {'class', 'item-value'})
+        singlesDraw = tournamentDetails[0].text.strip()
+        doublesDraw = tournamentDetails[1].text.strip()
+        surface = tournamentDetails[2].text.strip()
+        prizeMoney = tournamentDetails[3].text.strip()
+        financialCommitment = tournamentDetails[4].text.strip()
+        # Add these to the dictionary
+
+        table = html.findAll('div', {'class', 'activity-tournament-table'})[0].find('table', {'class', 'mega-table'})
+        results = table.findAll('th')
+
+        headings = list()
+        for result in results:
+            headings.append(result.text.strip())
+
+        rows = table.findAll('tr')
+        # loop through values. Each value is a row in the table
+        #print (len(rows))
+        #for row in range(2,len(rows)):
+        #    values = row.text.split()
+        #    carrerStats[heading[0]]
+            
+
+
+
+
 if __name__ == '__main__':
     """
     Extract statistics for each player
@@ -128,8 +188,7 @@ if __name__ == '__main__':
     # Set the base url to start searching for each player profile.
     mensATPranking = 'https://www.atpworldtour.com/en/rankings/singles'
     home = 'https://www.atpworldtour.com'
-    playerTabs = ['bio',
-                  'player-activity',
+    playerTabs = ['player-activity',
                   'fedex-atp-win-loss',
                   'titles-and-finals',
                   'player-stats',
@@ -167,14 +226,27 @@ if __name__ == '__main__':
                 extension[-1] = tab
                 urlExtension = '/'.join(extension)
 
-                content = get_html_content(home+urlExtension)
-                html = BeautifulSoup(content, 'html.parser')
+                #content = get_html_content(home+urlExtension)
+                #html = BeautifulSoup(content, 'html.parser')
 
                 # get the data for each tab
                 # create functions for each tab
                 # each function will need different configurations.
-
-
+                if tab is 'player-activity':
+                    playerProfile(home+urlExtension+'?year=all')
+                    pass
+                elif tab is 'fedex-atp-win-loss':
+                    pass
+                elif tab is 'titles-and-finals':
+                    pass
+                elif tab is 'player-stats':
+                    pass
+                elif tab is 'rankings-history':
+                    pass
+                elif tab is 'rankings-breakdown':
+                    pass
+                else:
+                    print (tab+' profile for '+player.text.strip()+' is not supported')
 
             
 
