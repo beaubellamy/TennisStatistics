@@ -166,6 +166,20 @@ def playerProfile(url):
             
 
 
+def WinLossStats():
+    pass
+
+def titles():
+    pass
+
+def playerStats():
+    pass
+
+def rankingHistory():
+    pass
+
+def rankingBreakdown():
+    pass
 
 
 if __name__ == '__main__':
@@ -225,6 +239,7 @@ if __name__ == '__main__':
                 # go to the next tab
                 extension[-1] = tab
                 urlExtension = '/'.join(extension)
+                print(home+urlExtension)
 
                 #content = get_html_content(home+urlExtension)
                 #html = BeautifulSoup(content, 'html.parser')
@@ -233,18 +248,23 @@ if __name__ == '__main__':
                 # create functions for each tab
                 # each function will need different configurations.
                 if tab is 'player-activity':
-                    playerProfile(home+urlExtension+'?year=all')
+                    #playerProfile(home+urlExtension+'?year=all')
                     pass
                 elif tab is 'fedex-atp-win-loss':
-                    pass
+                    WinLossStats()
+                    # Placehoder
                 elif tab is 'titles-and-finals':
-                    pass
+                    titles()
+                    # Placehoder
                 elif tab is 'player-stats':
-                    pass
+                    playerStats()
+                    # Placehoder
                 elif tab is 'rankings-history':
-                    pass
+                    rankingHistory()
+                    # Placehoder
                 elif tab is 'rankings-breakdown':
-                    pass
+                    rankingBreakdown()
+                    # Placehoder
                 else:
                     print (tab+' profile for '+player.text.strip()+' is not supported')
 
