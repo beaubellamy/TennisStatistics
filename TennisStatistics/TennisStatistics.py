@@ -108,34 +108,39 @@ def getPlayersFromPage(mensATPranking,rankDate,startRank,endRank):
     return players
 
 
-def playerProfile(url):
+def getPlayerProfile(player, url):
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
 
     statsTable = html.findAll('div', {'class', 'stat-value'})
 
-    carrerStats = {}
+    careerStats = {}
 
-    # Single stats
+    # Career Single stats
 
     # Win Loss
     wins = statsTable[1].parent.contents[1].text.split('-')[0]
-    carrerStats['Win'] = wins
+    careerStats['Win'] = wins
     loss = statsTable[1].parent.contents[1].text.split('-')[1]
-    carrerStats['Loss'] = loss
+    careerStats['Loss'] = loss
     
     # Titles
     titles = statsTable[2].parent.contents[1].text
-    carrerStats['Titles'] = titles
+    careerStats['Titles'] = titles
 
     # Prize money
     prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
     careerPrizeMoney =  prizeMoney.replace(',','')
-    carrerStats['Prize Money'] = careerPrizeMoney
+    careerStats['Prize Money'] = careerPrizeMoney
 
     # Tournaments
     tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
+    tournamentDic = {}
+    scores = {}
+    tournamentResults = {}
+
+    firstTournament = True
 
     for tournament in tournaments:
         
@@ -148,21 +153,88 @@ def playerProfile(url):
         surface = tournamentDetails[2].text.strip()
         prizeMoney = tournamentDetails[3].text.strip()
         financialCommitment = tournamentDetails[4].text.strip()
-        # Add these to the dictionary
+        
+        if (firstTournament):
+            tournamentDic['Tournament'] = [tournamentTitle]
+            tournamentDic['Location'] = [location]
+            tournamentDic['Date'] = [tournamentDate]
+            tournamentDic['Surface'] = [surface]
+            tournamentDic['# Singles Draw'] = [singlesDraw]
+            tournamentDic['# Doubles Draw'] = [doublesDraw]
+            tournamentDic['Prize Money'] = [prizeMoney]
+            tournamentDic['Financial Commitment'] = [financialCommitment]
+            firstTournament = False
+        else:
+            tournamentDic['Tournament'].append(tournamentTitle)
+            tournamentDic['Location'].append(location)
+            tournamentDic['Date'].append(tournamentDate)
+            tournamentDic['Surface'].append(surface)
+            tournamentDic['# Singles Draw'].append(singlesDraw)
+            tournamentDic['# Doubles Draw'].append(doublesDraw)
+            tournamentDic['Prize Money'].append(prizeMoney)
+            tournamentDic['Financial Commitment'].append(financialCommitment)
+
 
         table = html.findAll('div', {'class', 'activity-tournament-table'})[0].find('table', {'class', 'mega-table'})
         results = table.findAll('th')
 
-        headings = list()
+        headings = []
         for result in results:
             headings.append(result.text.strip())
 
+        # Replace teh W-L heading with ...
+        headings[3] = 'Result'
+
         rows = table.findAll('tr')
         # loop through values. Each value is a row in the table
-        #print (len(rows))
-        #for row in range(2,len(rows)):
-        #    values = row.text.split()
-        #    carrerStats[heading[0]]
+        values = []
+        firstRow = True
+
+        
+        for row in rows:
+            for index in range(1,len(row.contents),2):
+                values.append(row.contents[index].text.split())
+                
+            if (firstRow):
+                scores[headings[0]] = [' '.join(values[0])]
+                scores[headings[1]] = values[1]
+                scores[headings[2]] = [' '.join(values[2])]
+                scores[headings[3]] = values[3]
+
+            else:
+                scores[headings[0]].append(' '.join(values[0]))
+                scores[headings[1]].append(values[1][0])
+                scores[headings[2]].append(' '.join(values[2]))
+                scores[headings[3]].append(values[3][0])
+
+            # Scores, always display 5 set results
+            for index in range(5):
+                key = ' Set '+str(index+1)
+                
+                if (index >= len(values[4])):
+                    value = '--'
+                else:
+                    value = values[4][index]
+
+                if (firstRow):
+                    scores[key] = [value]                    
+                else:
+                    scores[key].append(value)
+
+
+            values = []
+            firstRow = False
+            # link the results to the tournament, currently the results get overwritten on each tournament.
+            # how do you add a dictionary as an element to another dictionary.
+            tournamentResults[tournamentTitle] = {scores}
+
+        
+
+        print (len(rows))
+        print (len(values))
+        print (len(headings))
+
+#            careerStats[heading[0]]
             
 
 
@@ -248,8 +320,9 @@ if __name__ == '__main__':
                 # create functions for each tab
                 # each function will need different configurations.
                 if tab is 'player-activity':
-                    #playerProfile(home+urlExtension+'?year=all')
+                    getPlayerProfile(player, home+urlExtension+'?year=all')
                     pass
+                    # store this in its own file
                 elif tab is 'fedex-atp-win-loss':
                     WinLossStats()
                     # Placehoder
