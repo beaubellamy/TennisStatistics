@@ -43,7 +43,7 @@ def get_html_content(url, multiplier=1):
     # Be a responisble scraper.
     # The multiplier is used to exponentially increase the delay when 
     # there are several attempts at connecting to the url
-    randomSleep = random.uniform(2,10)  # Randomise the time to sleep to reduce predictability
+    randomSleep = random.uniform(2,5)  # Randomise the time to sleep to reduce predictability
     time.sleep(randomSleep*multiplier)
 
     #Choose the next proxy in the list
@@ -68,7 +68,7 @@ def get_html_content(url, multiplier=1):
         # Error messages recieved. I should be catching these and properly dealing with them. 
         # I'm not sure how to deal with them properly though.
 
-def appendDFToCSV_void(df, csvFilePath, sep=","):
+def append_DF_To_CSV(df, csvFilePath, sep=","):
     """
     Append the dataframe to an existing file.
     
@@ -93,9 +93,9 @@ def appendDFToCSV_void(df, csvFilePath, sep=","):
     else:
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
-def getPlayersFromPage(mensATPranking,rankDate,startRank,endRank):
+def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
     """
-    Extract all the player names from the rankings list
+    Get the players home page
     """
 
     rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
@@ -107,53 +107,106 @@ def getPlayersFromPage(mensATPranking,rankDate,startRank,endRank):
 
     return players
 
-
-def getPlayerProfile(player, url):
+def get_Player_Details(player, url):
+    """
+    Get the players biographical details.
+    """
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
+    
+    # Find all the items in the main banner.
+    profile = html.findAll('div', {'class', 'wrap'})
 
+    details ={}
+    details['Player'] = player.text.strip()
+
+    for item in profile:
+        key = item.contents[1].text.strip()
+        value = item.contents[3].text.strip()
+
+        # Replace the value when key is ...
+        if (key == 'Age'):
+            value = item.contents[3].text.strip().split()[0]
+            details[key] = value
+            key = 'D.O.B'
+            value = item.contents[3].text.strip().split()[1]
+
+        if (key == 'Weight'):
+            # strip out the S.I. units
+            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
+
+        if (key == 'Height'):
+            # strip out the S.I. units
+            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
+
+        details[key] = value
+
+    return details
+
+
+
+
+def get_Player_Profile(player, url):
+    """
+    Get all the results from each tournament.
+    """
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+
+    # Get the main statistics
     statsTable = html.findAll('div', {'class', 'stat-value'})
 
-    careerStats = {}
+    playerProfile = {}
 
-    # Career Single stats
-
-    # Win Loss
-    wins = statsTable[1].parent.contents[1].text.split('-')[0]
-    careerStats['Win'] = wins
-    loss = statsTable[1].parent.contents[1].text.split('-')[1]
-    careerStats['Loss'] = loss
+    # Win - Loss
+    winLoss = statsTable[1].parent.contents[1].text.split('-')
+    wins = winLoss[0]
+    playerProfile['Win'] = wins
+    loss = winLoss[1]
+    playerProfile['Loss'] = loss
     
     # Titles
     titles = statsTable[2].parent.contents[1].text
-    careerStats['Titles'] = titles
+    playerProfile['Titles'] = titles
 
     # Prize money
     prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
     careerPrizeMoney =  prizeMoney.replace(',','')
-    careerStats['Prize Money'] = careerPrizeMoney
+    playerProfile['Prize Money'] = careerPrizeMoney
 
     # Tournaments
     tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
+
+    # Set up the dictionaries
     tournamentDic = {}
     scores = {}
     tournamentResults = {}
 
+    # Flag to identify when the first tournament has been read
     firstTournament = True
 
     for tournament in tournaments:
         
-        tournamentTitle = tournament.find('td', {'class', 'title-content'}).contents[1].text
+        # Strip out the details for each tournament
+        tournamentTitle = tournament.find('td', {'class', 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class', 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class', 'tourney-dates'}).text.strip().split('-')[0].strip()
+        #print (tournamentTitle+' '+location+' '+tournamentDate)
         tournamentDetails =  tournament.findAll('span', {'class', 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
         doublesDraw = tournamentDetails[1].text.strip()
         surface = tournamentDetails[2].text.strip()
-        prizeMoney = tournamentDetails[3].text.strip()
-        financialCommitment = tournamentDetails[4].text.strip()
+
+        if (len(tournamentDetails) > 4):
+            prizeMoney = tournamentDetails[3].text.strip()
+            financialCommitment = tournamentDetails[4].text.strip()
+        else:
+            # For the national teams tournaments, that dont provide points or prize money
+            prizeMoney = ''
+            financialCommitment = ''
         
+
         if (firstTournament):
             tournamentDic['Tournament'] = [tournamentTitle]
             tournamentDic['Location'] = [location]
@@ -174,7 +227,7 @@ def getPlayerProfile(player, url):
             tournamentDic['Prize Money'].append(prizeMoney)
             tournamentDic['Financial Commitment'].append(financialCommitment)
 
-
+        # Get the results for each tournament
         table = html.findAll('div', {'class', 'activity-tournament-table'})[0].find('table', {'class', 'mega-table'})
         results = table.findAll('th')
 
@@ -182,19 +235,20 @@ def getPlayerProfile(player, url):
         for result in results:
             headings.append(result.text.strip())
 
-        # Replace teh W-L heading with ...
+        # Replace the W-L heading with result
         headings[3] = 'Result'
 
         rows = table.findAll('tr')
-        # loop through values. Each value is a row in the table
+
         values = []
         firstRow = True
 
-        
+        # Go through each round and extract the opponents details and the scores.
         for row in rows:
             for index in range(1,len(row.contents),2):
                 values.append(row.contents[index].text.split())
-                
+             
+            # Round details
             if (firstRow):
                 scores[headings[0]] = [' '.join(values[0])]
                 scores[headings[1]] = values[1]
@@ -224,17 +278,12 @@ def getPlayerProfile(player, url):
 
             values = []
             firstRow = False
-            # link the results to the tournament, currently the results get overwritten on each tournament.
-            # how do you add a dictionary as an element to another dictionary.
-            tournamentResults[tournamentTitle] = {scores}
 
-        
+            # Get the points and prize money won
 
-        print (len(rows))
-        print (len(values))
-        print (len(headings))
+            tournamentResults[tournamentTitle] = scores
 
-#            careerStats[heading[0]]
+    return tournamentResults
             
 
 
@@ -256,7 +305,7 @@ def rankingBreakdown():
 
 if __name__ == '__main__':
     """
-    Extract statistics for each player
+    Extract the history of each player.
     """
 
     # Create the list of proxies.
@@ -274,6 +323,7 @@ if __name__ == '__main__':
     # Set the base url to start searching for each player profile.
     mensATPranking = 'https://www.atpworldtour.com/en/rankings/singles'
     home = 'https://www.atpworldtour.com'
+    # Set the url tabs that we want to look at
     playerTabs = ['player-activity',
                   'fedex-atp-win-loss',
                   'titles-and-finals',
@@ -285,6 +335,9 @@ if __name__ == '__main__':
     html = BeautifulSoup(content, 'html.parser')    
     rankDate = html.find('div', {'class', 'dropdown-label'}).text.strip().replace('.','-')
     
+    # Set up the profile dictionary
+    playerProfile = {}
+
     # look through each of the ranking pages
     for page in range(1):
         startRank = page * 100
@@ -296,7 +349,9 @@ if __name__ == '__main__':
         #html = BeautifulSoup(content, 'html.parser')
         ## Find all the players
         #players = html.findAll('td', {'class', 'player-cell'})
-        players = getPlayersFromPage(mensATPranking,rankDate,startRank,endRank)
+
+        # Get a list of players on each page
+        players = get_Players_Page(mensATPranking,rankDate,startRank,endRank)
 
         # Loop through each player profiles
         for player in players:
@@ -306,23 +361,27 @@ if __name__ == '__main__':
 
             # Loop through the profile tabs
             extension = urlExtension.split('/')
+            # remove teh first unwanted tab from the url
+            del extension[-1]
+
+            # Get the player details
+            playerProfile = get_Player_Details(player, home+urlExtension)
 
             for tab in playerTabs:
-                # go to the next tab
-                extension[-1] = tab
+
+                # Go to the next tab
+                extension.append(tab)
                 urlExtension = '/'.join(extension)
                 print(home+urlExtension)
 
                 #content = get_html_content(home+urlExtension)
                 #html = BeautifulSoup(content, 'html.parser')
 
-                # get the data for each tab
-                # create functions for each tab
-                # each function will need different configurations.
-                if tab is 'player-activity':
-                    getPlayerProfile(player, home+urlExtension+'?year=all')
-                    pass
+                # Get the details from each tab
+                if tab is 'player-activity':                      # remove this comment when ready to complete
+                    playerProfile['Results'] = get_Player_Profile(player, home+urlExtension) #+'?year=all')
                     # store this in its own file
+
                 elif tab is 'fedex-atp-win-loss':
                     WinLossStats()
                     # Placehoder
