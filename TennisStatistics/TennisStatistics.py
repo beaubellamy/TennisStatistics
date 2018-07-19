@@ -177,7 +177,7 @@ def get_Player_Profile(player, url):
 
     # Tournaments
     tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
-
+    
     # Set up the dictionaries
     tournamentDic = {}
     scores = {}
@@ -192,11 +192,16 @@ def get_Player_Profile(player, url):
         tournamentTitle = tournament.find('td', {'class', 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class', 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class', 'tourney-dates'}).text.strip().split('-')[0].strip()
+        caption = tournament.find('div', {'class', 'activity-tournament-caption'})
         #print (tournamentTitle+' '+location+' '+tournamentDate)
         tournamentDetails =  tournament.findAll('span', {'class', 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
         doublesDraw = tournamentDetails[1].text.strip()
         surface = tournamentDetails[2].text.strip()
+
+        pointsEarned = caption.text.split()[3].replace(',','')
+        rank = caption.text.split()[6].replace(',','')
+        prizeMoneyEarned = caption.text.split()[9]
 
         if (len(tournamentDetails) > 4):
             prizeMoney = tournamentDetails[3].text.strip()
@@ -216,6 +221,10 @@ def get_Player_Profile(player, url):
             tournamentDic['# Doubles Draw'] = [doublesDraw]
             tournamentDic['Prize Money'] = [prizeMoney]
             tournamentDic['Financial Commitment'] = [financialCommitment]
+            tournamentDic['Points'] = [pointsEarned]
+            tournamentDic['Rank at Tournament'] = [rank]
+            tournamentDic['Prize Money Earned'] = [prizeMoneyEarned]
+
             firstTournament = False
         else:
             tournamentDic['Tournament'].append(tournamentTitle)
@@ -226,6 +235,9 @@ def get_Player_Profile(player, url):
             tournamentDic['# Doubles Draw'].append(doublesDraw)
             tournamentDic['Prize Money'].append(prizeMoney)
             tournamentDic['Financial Commitment'].append(financialCommitment)
+            tournamentDic['Points'].append(pointsEarned)
+            tournamentDic['Rank at Tournament'].append(rank)
+            tournamentDic['Prize Money Earned'].append(prizeMoneyEarned)
 
         # Get the results for each tournament
         table = html.findAll('div', {'class', 'activity-tournament-table'})[0].find('table', {'class', 'mega-table'})
@@ -380,7 +392,13 @@ if __name__ == '__main__':
                 # Get the details from each tab
                 if tab is 'player-activity':                      # remove this comment when ready to complete
                     playerProfile['Results'] = get_Player_Profile(player, home+urlExtension) #+'?year=all')
-                    # store this in its own file
+
+                    # Convert the dictionary to a pandas dataframe
+                    profileDateFrame = pd.DataFrame.from_dict(playerProfile, orient='index')
+
+                    # Write the dataframe to a csv file.
+                    playerName = player.text.strip().replace(' ','_')
+                    append_DF_To_CSV(profileDateFrame, playerName+'_Activity.csv', sep=",")
 
                 elif tab is 'fedex-atp-win-loss':
                     WinLossStats()
