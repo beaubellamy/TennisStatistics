@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 #import unidecode
 import numpy as np
+import csv
 #import math
 #from fractions import Fraction
 #import re
@@ -20,6 +21,8 @@ import random
 #import requests.exceptions
 import os
 import warnings
+import xlwt
+
 
 
 def is_good_response(resp):
@@ -82,11 +85,11 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
 
     # Check if the dataframes match before adding to file
     elif len(df.columns) != len(pd.read_csv(csvFilePath, nrows=1, sep=sep).columns):
-        df.to_csv(csvFilePath+str(datetime.utcnow().time()), mode='a', index=False, sep=sep)
+        df.to_csv(csvFilePath, mode='a', index=False, sep=sep)
         warnings.warn('Columns do not match!! Dataframe has ' + str(len(df.columns)) + ' columns. CSV file has ' + str(len(pd.read_csv(csvFilePath, nrows=1, sep=sep).columns)) + ' columns.')
         
     elif not (df.columns == pd.read_csv(csvFilePath, nrows=1, sep=sep).columns).all():
-        df.to_csv(csvFilePath+str(datetime.utcnow().time()), mode='a', index=False, sep=sep)
+        df.to_csv(csvFilePath, mode='a', index=False, sep=sep)
         warnings.warn('Columns and column order of dataframe and csv file do not match!!')
     
     # Append the dataframe to the existing file
@@ -142,49 +145,47 @@ def get_Player_Details(player, url):
 
         details[key] = value
 
-    return details
-
-
-
-
-def get_Player_Profile(player, url):
-    """
-    Get all the results from each tournament.
-    """
-    content = get_html_content(url)
-    html = BeautifulSoup(content, 'html.parser')
-
     # Get the main statistics
     statsTable = html.findAll('div', {'class', 'stat-value'})
-
-    playerProfile = {}
 
     # Win - Loss
     winLoss = statsTable[1].parent.contents[1].text.split('-')
     wins = winLoss[0]
-    playerProfile['Win'] = wins
+    details['Win'] = wins
     loss = winLoss[1]
-    playerProfile['Loss'] = loss
+    details['Loss'] = loss
     
     # Titles
     titles = statsTable[2].parent.contents[1].text
-    playerProfile['Titles'] = titles
+    details['Titles'] = titles
 
     # Prize money
     prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
     careerPrizeMoney =  prizeMoney.replace(',','')
-    playerProfile['Prize Money'] = careerPrizeMoney
+    details['Prize Money'] = careerPrizeMoney
 
+    return details
+
+
+def get_Player_Activity(player, url):
+    """
+    Get all the results from each tournament.
+
+    This function writes the player activity to a xlsx file.
+    """
+
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+    
     # Tournaments
     tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
     
     # Set up the dictionaries
     tournamentDic = {}
-    scores = {}
-    tournamentResults = {}
 
     # Flag to identify when the first tournament has been read
     firstTournament = True
+
 
     for tournament in tournaments:
         
@@ -193,7 +194,6 @@ def get_Player_Profile(player, url):
         location = tournament.find('span', {'class', 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class', 'tourney-dates'}).text.strip().split('-')[0].strip()
         caption = tournament.find('div', {'class', 'activity-tournament-caption'})
-        #print (tournamentTitle+' '+location+' '+tournamentDate)
         tournamentDetails =  tournament.findAll('span', {'class', 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
         doublesDraw = tournamentDetails[1].text.strip()
@@ -211,45 +211,16 @@ def get_Player_Profile(player, url):
             prizeMoney = ''
             financialCommitment = ''
         
-
-        if (firstTournament):
-            tournamentDic['Tournament'] = [tournamentTitle]
-            tournamentDic['Location'] = [location]
-            tournamentDic['Date'] = [tournamentDate]
-            tournamentDic['Surface'] = [surface]
-            tournamentDic['# Singles Draw'] = [singlesDraw]
-            tournamentDic['# Doubles Draw'] = [doublesDraw]
-            tournamentDic['Prize Money'] = [prizeMoney]
-            tournamentDic['Financial Commitment'] = [financialCommitment]
-            tournamentDic['Points'] = [pointsEarned]
-            tournamentDic['Rank at Tournament'] = [rank]
-            tournamentDic['Prize Money Earned'] = [prizeMoneyEarned]
-
-            firstTournament = False
-        else:
-            tournamentDic['Tournament'].append(tournamentTitle)
-            tournamentDic['Location'].append(location)
-            tournamentDic['Date'].append(tournamentDate)
-            tournamentDic['Surface'].append(surface)
-            tournamentDic['# Singles Draw'].append(singlesDraw)
-            tournamentDic['# Doubles Draw'].append(doublesDraw)
-            tournamentDic['Prize Money'].append(prizeMoney)
-            tournamentDic['Financial Commitment'].append(financialCommitment)
-            tournamentDic['Points'].append(pointsEarned)
-            tournamentDic['Rank at Tournament'].append(rank)
-            tournamentDic['Prize Money Earned'].append(prizeMoneyEarned)
-
-        # Get the results for each tournament
-        table = html.findAll('div', {'class', 'activity-tournament-table'})[0].find('table', {'class', 'mega-table'})
+        # Get the results table for each tournament
+        table = tournament.find('table', {'class', 'mega-table'})
         results = table.findAll('th')
 
         headings = []
         for result in results:
             headings.append(result.text.strip())
-
         # Replace the W-L heading with result
-        headings[3] = 'Result'
-
+        headings[-2] = 'Result'
+        
         rows = table.findAll('tr')
 
         values = []
@@ -257,50 +228,187 @@ def get_Player_Profile(player, url):
 
         # Go through each round and extract the opponents details and the scores.
         for row in rows:
+
             for index in range(1,len(row.contents),2):
                 values.append(row.contents[index].text.split())
-             
-            # Round details
+            
+            # Only need to use the last 5 values 
+            roundResult = values[-5:]
+            
             if (firstRow):
-                scores[headings[0]] = [' '.join(values[0])]
-                scores[headings[1]] = values[1]
-                scores[headings[2]] = [' '.join(values[2])]
-                scores[headings[3]] = values[3]
+                if (firstTournament):
+                    # First row of the first tournament
+                    tournamentDic['Tournament'] = [tournamentTitle]
+                    tournamentDic['Location'] = [location]
+                    tournamentDic['Date'] = [tournamentDate]
+                    tournamentDic['Surface'] = [surface]
+                    tournamentDic['# Singles Draw'] = [singlesDraw]
+                    tournamentDic['# Doubles Draw'] = [doublesDraw]
+                    tournamentDic['Prize Money'] = [prizeMoney]
+                    tournamentDic['Financial Commitment'] = [financialCommitment]
+                    tournamentDic['Points'] = [pointsEarned]
+                    tournamentDic['Rank at Tournament'] = [rank]
+                    tournamentDic['Prize Money Earned'] = [prizeMoneyEarned]
 
-            else:
-                scores[headings[0]].append(' '.join(values[0]))
-                scores[headings[1]].append(values[1][0])
-                scores[headings[2]].append(' '.join(values[2]))
-                scores[headings[3]].append(values[3][0])
+                    tournamentDic[headings[0]] = [' '.join(roundResult[0])]
+                    tournamentDic[headings[1]] = roundResult[1]
+                    tournamentDic[headings[2]] = [' '.join(roundResult[2])]
+                    tournamentDic[headings[3]] = roundResult[3]
 
-            # Scores, always display 5 set results
-            for index in range(5):
-                key = ' Set '+str(index+1)
+                    # Get results for each set
+                    for index in range(5):
+                        key = ' Set '+str(index+1)
                 
-                if (index >= len(values[4])):
-                    value = '--'
+                        if (index >= len(roundResult[4])):
+                            score = '--'
+                        else:
+                            score = roundResult[4][index]
+
+                        tournamentDic[key] = [score]                    
+
+                    firstTournament = False
                 else:
-                    value = values[4][index]
+                    # When we get on to the next tournament, we dont want to 
+                    # overwrite the last tournament results.
+                    tournamentDic['Tournament'].append(tournamentTitle)
+                    tournamentDic['Location'].append(location)
+                    tournamentDic['Date'].append(tournamentDate)
+                    tournamentDic['Surface'].append(surface)
+                    tournamentDic['# Singles Draw'].append(singlesDraw)
+                    tournamentDic['# Doubles Draw'].append(doublesDraw)
+                    tournamentDic['Rank at Tournament'].append(rank)
 
-                if (firstRow):
-                    scores[key] = [value]                    
+                    if (firstRow):
+                        tournamentDic['Prize Money'].append(prizeMoney)
+                        tournamentDic['Financial Commitment'].append(financialCommitment)
+                        tournamentDic['Points'].append(pointsEarned)
+                        tournamentDic['Prize Money Earned'].append(prizeMoneyEarned)
+                    else:
+                        tournamentDic['Prize Money'].append('')
+                        tournamentDic['Financial Commitment'].append('')
+                        tournamentDic['Points'].append('')
+                        tournamentDic['Prize Money Earned'].append('')
+
+                    tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
+                    tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
+                    if ('Bye' in roundResult[2]):
+                        # Player has a bye for this round
+                        tournamentDic[headings[1]].append('')         # Opponent rank
+                        tournamentDic[headings[3]].append('')         # Result (W or L)
+                    else:
+                        tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
+                        tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+
+                    # Get results for each set
+                    for index in range(5):
+                        key = ' Set '+str(index+1)
+                
+                        if (index >= len(roundResult[4])):
+                            score = '--'
+                        else:
+                            score = roundResult[4][index]
+
+                        tournamentDic[key].append(score)
+                        
+            else:
+                # Remaining round details
+                tournamentDic['Tournament'].append(tournamentTitle)
+                tournamentDic['Location'].append(location)
+                tournamentDic['Date'].append(tournamentDate)
+                tournamentDic['Surface'].append(surface)
+                tournamentDic['# Singles Draw'].append(singlesDraw)
+                tournamentDic['# Doubles Draw'].append(doublesDraw)
+                tournamentDic['Prize Money'].append('')
+                tournamentDic['Financial Commitment'].append('')
+                tournamentDic['Points'].append('')
+                tournamentDic['Rank at Tournament'].append(rank)
+                tournamentDic['Prize Money Earned'].append('')
+
+                tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
+                tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
+                if ('Bye' in roundResult[2]):
+                    # Player has a bye for this round
+                    tournamentDic[headings[1]].append('')         # Opponent rank
+                    tournamentDic[headings[3]].append('')         # Result (W or L)
                 else:
-                    scores[key].append(value)
+                    tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
+                    tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
 
+                # Get results for each set
+                for index in range(5):
+                    key = ' Set '+str(index+1)
+                
+                    if (index >= len(roundResult[4])):
+                        score = '--'
+                    else:
+                        score = roundResult[4][index]
 
-            values = []
+                    tournamentDic[key].append(score)
+
             firstRow = False
 
-            # Get the points and prize money won
+    # Convert the dictionary to a pandas dataframe
+    profileDateFrame = pd.DataFrame.from_dict(tournamentDic, orient='columns')
 
-            tournamentResults[tournamentTitle] = scores
-
-    return tournamentResults
-            
+    # Write the dataframe to a csv file.
+    playerName = player.text.strip().replace(' ','_')
+    filename = playerName+'.xlsx'
+    sheet = 'Activity'
+    profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
+    
 
 
 def WinLossStats():
-    pass
+    return
+
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+    
+    # Find all the items in the main banner.
+    profile = html.findAll('div', {'class', 'wrap'})
+
+    details ={}
+    details['Player'] = player.text.strip()
+
+    for item in profile:
+        key = item.contents[1].text.strip()
+        value = item.contents[3].text.strip()
+
+        # Replace the value when key is ...
+        if (key == 'Age'):
+            value = item.contents[3].text.strip().split()[0]
+            details[key] = value
+            key = 'D.O.B'
+            value = item.contents[3].text.strip().split()[1]
+
+        if (key == 'Weight'):
+            # strip out the S.I. units
+            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
+
+        if (key == 'Height'):
+            # strip out the S.I. units
+            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
+
+        details[key] = value
+
+    # Get the main statistics
+    statsTable = html.findAll('div', {'class', 'stat-value'})
+
+    # Win - Loss
+    winLoss = statsTable[1].parent.contents[1].text.split('-')
+    wins = winLoss[0]
+    details['Win'] = wins
+    loss = winLoss[1]
+    details['Loss'] = loss
+    
+    # Titles
+    titles = statsTable[2].parent.contents[1].text
+    details['Titles'] = titles
+
+    # Prize money
+    prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
+    careerPrizeMoney =  prizeMoney.replace(',','')
+    details['Prize Money'] = careerPrizeMoney
 
 def titles():
     pass
@@ -373,14 +481,12 @@ if __name__ == '__main__':
 
             # Loop through the profile tabs
             extension = urlExtension.split('/')
-            # remove teh first unwanted tab from the url
-            del extension[-1]
-
-            # Get the player details
-            playerProfile = get_Player_Details(player, home+urlExtension)
-
+                     
             for tab in playerTabs:
-
+                
+                # remove the first unwanted tab from the url
+                del extension[-1]
+               
                 # Go to the next tab
                 extension.append(tab)
                 urlExtension = '/'.join(extension)
@@ -391,18 +497,16 @@ if __name__ == '__main__':
 
                 # Get the details from each tab
                 if tab is 'player-activity':                      # remove this comment when ready to complete
-                    playerProfile['Results'] = get_Player_Profile(player, home+urlExtension) #+'?year=all')
+                    get_Player_Activity(player, home+urlExtension) #+'?year=all')
 
-                    # Convert the dictionary to a pandas dataframe
-                    profileDateFrame = pd.DataFrame.from_dict(playerProfile, orient='index')
-
-                    # Write the dataframe to a csv file.
-                    playerName = player.text.strip().replace(' ','_')
-                    append_DF_To_CSV(profileDateFrame, playerName+'_Activity.csv', sep=",")
+                    #playerProfile.update(get_Career_Activity(home+urlExtension))
+                    
 
                 elif tab is 'fedex-atp-win-loss':
                     WinLossStats()
                     # Placehoder
+                    # Need to append each value to a key list to create the correct dictionary
+
                 elif tab is 'titles-and-finals':
                     titles()
                     # Placehoder
@@ -419,6 +523,8 @@ if __name__ == '__main__':
                     print (tab+' profile for '+player.text.strip()+' is not supported')
 
             
+        filename = 'player_stats.xlsx'
+        profileDateFrame.to_excel(filename, index=False)
 
 
 
