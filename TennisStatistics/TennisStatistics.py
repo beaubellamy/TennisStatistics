@@ -23,7 +23,8 @@ import os
 import warnings
 import xlwt
 
-
+filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 
 def is_good_response(resp):
     """
@@ -394,8 +395,8 @@ def get_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
-    filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
     
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
@@ -412,8 +413,9 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
     # Find all the elements of the table
     elements = matchRecord.findAll('td')
     tableWidth = 12
+    recordElements = len(elements)//tableWidth
 
-    for idx in range(len(elements)//tableWidth):
+    for idx in range(recordElements):
    
         key = elements[idx*tableWidth].text.strip()
         titles = elements[idx*tableWidth+11].text.split()
@@ -442,14 +444,61 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
 
 
 
-def titles():
-    pass
 
-def get_Player_Stats():
-    pass
+def get_Player_Stats(url,playerProfile, firstPass=False):
+    
+    url+= '/player-stats'
 
-def rankingHistory():
-    pass
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+
+    matchRecord = html.find('div', {'id': 'playerMatchFactsContainer'}).findAll('tr')
+        
+    for record in matchRecord:
+
+        if (len(record.contents) > 3):
+            if (firstPass):
+                playerProfile[record.contents[1].text.strip()] = [record.contents[3].text.strip()]
+
+            else:
+                playerProfile[record.contents[1].text.strip()].append(record.contents[3].text.strip())
+
+    return playerProfile
+
+
+
+
+def get_Ranking_History(url, rankHistory, firstPass=False):
+
+    url+= '/rankings-history'
+
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+
+    rankings = html.find('table', {'class': 'mega-table'}).findAll('tr')
+    
+    print ('rankings')
+
+    # Need to account for dates that aren't in other players list.
+    # Get the first date and calculate each key from there.
+    # values will be empty where a date is not in the players list.
+
+    # check date against key (string) 
+    
+    for rank in rankings:
+
+        key = rank.contents[1].text.strip()
+        value = rank.contents[3].text.strip()
+
+        if (key != 'Date'):
+            if (firstPass):
+                rankHistory[key] = [value]
+            else:
+                rankHistory[key].append(value)
+
+    return rankHistory
+
+
 
 def rankingBreakdown():
     pass
@@ -489,6 +538,7 @@ if __name__ == '__main__':
     
     # Set up the profile dictionary
     playerProfile = {}
+    rankHistory = {}
     firstPass = True
 
     # look through each of the ranking pages
@@ -533,17 +583,15 @@ if __name__ == '__main__':
                 playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)
                 
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
-                #titles()
-                #get_Player_Stats()
-                #rankingHistory()
+                playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
+                rankHistory = get_Ranking_History(url, rankHistory,firstPass=firstPass)
 
                 firstPass = False
             else:
                 playerProfile = get_Player_Details(player, playerProfile, url)
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
-                #titles()
-                #get_Player_Stats()
-                #rankingHistory()
+                playerProfile = get_Player_Stats(url, playerProfile)
+                rankHistory = get_Ranking_History(url, rankHistory)
                     
 
         #elif tab is 'fedex-atp-win-loss':
@@ -568,10 +616,15 @@ if __name__ == '__main__':
         #    print (tab+' profile for '+player.text.strip()+' is not supported')
 
         playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
+        rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
+
         # replace empty strings with nans
         
-        #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Player_Stats.xlsx'
-        filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Player_Stats.xlsx'
-        playerStats.to_excel(filename, index=False)
+        playerFile = filePath+'Player_Stats.xlsx'
+        rankFile = filePath+'Rank_History.xlsx'
+
+        playerStats.to_excel(playerFile, index=False)
+        rank.to_excel(filename, index=False)
+
 
 
