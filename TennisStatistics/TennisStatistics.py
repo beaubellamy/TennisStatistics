@@ -96,6 +96,7 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
     else:
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
+
 def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
     """
     Get the players home page
@@ -106,7 +107,7 @@ def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
     html = BeautifulSoup(content, 'html.parser')
     # Find all the players
     
-    players = html.findAll('td', {'class', 'player-cell'})
+    players = html.findAll('td', {'class': 'player-cell'})
 
     return players
 
@@ -114,14 +115,14 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
     """
     Update the player profile dictionary with the biographical informaiton for the current player.
     """
-
+    url += '/player-activity'
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
     
     # Find all the items in the main banner.
-    profile = html.findAll('div', {'class', 'wrap'})
+    profile = html.findAll('div', {'class': 'wrap'})
     # Get the main statistics
-    statsTable = html.findAll('div', {'class', 'stat-value'})
+    statsTable = html.findAll('div', {'class': 'stat-value'})
 
     if (firstPass):
         playerProfile['Player'] = [player.text.strip()]
@@ -207,19 +208,19 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
 
     return playerProfile
 
-
 def get_Player_Activity(player, url):
     """
     Get all the results from each tournament.
 
     This function writes the player activity to a xlsx file.
     """
+    url += '/player-activity'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
     
     # Tournaments
-    tournaments = html.findAll('div', {'class', 'activity-tournament-table'})
+    tournaments = html.findAll('div', {'class': 'activity-tournament-table'})
     
     # Set up the dictionaries
     tournamentDic = {}
@@ -231,11 +232,11 @@ def get_Player_Activity(player, url):
     for tournament in tournaments:
         
         # Strip out the details for each tournament
-        tournamentTitle = tournament.find('td', {'class', 'title-content'}).contents[1].text.strip()
-        location = tournament.find('span', {'class', 'tourney-location'}).text.strip().split(',')[0]
-        tournamentDate =  tournament.find('span', {'class', 'tourney-dates'}).text.strip().split('-')[0].strip()
-        caption = tournament.find('div', {'class', 'activity-tournament-caption'})
-        tournamentDetails =  tournament.findAll('span', {'class', 'item-value'})
+        tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
+        location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
+        tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
+        caption = tournament.find('div', {'class': 'activity-tournament-caption'})
+        tournamentDetails =  tournament.findAll('span', {'class': 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
         doublesDraw = tournamentDetails[1].text.strip()
         surface = tournamentDetails[2].text.strip()
@@ -253,7 +254,7 @@ def get_Player_Activity(player, url):
             financialCommitment = ''
         
         # Get the results table for each tournament
-        table = tournament.find('table', {'class', 'mega-table'})
+        table = tournament.find('table', {'class': 'mega-table'})
         results = table.findAll('th')
 
         headings = []
@@ -393,68 +394,58 @@ def get_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    filename = 'C:\\Users\Beau\Documents\DataScience\Tennis\Ouput Files\Players Activity\\'+playerName+'.xlsx'
+    #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
+    
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
     
-
-
-def WinLossStats():
-    return
+def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
+    
+    url+= '/fedex-atp-win-loss'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
-    
-    # Find all the items in the main banner.
-    profile = html.findAll('div', {'class', 'wrap'})
 
-    details ={}
-    details['Player'] = player.text.strip()
+    matchRecord = html.find('div', {'id': 'matchRecordTableContainer'})
+        
+    # Find all the elements of the table
+    elements = matchRecord.findAll('td')
+    tableWidth = 12
 
-    for item in profile:
-        key = item.contents[1].text.strip()
-        value = item.contents[3].text.strip()
+    for idx in range(len(elements)//tableWidth):
+   
+        key = elements[idx*tableWidth].text.strip()
+        titles = elements[idx*tableWidth+11].text.split()
 
-        # Replace the value when key is ...
-        if (key == 'Age'):
-            value = item.contents[3].text.strip().split()[0]
-            details[key] = value
-            key = 'D.O.B'
-            value = item.contents[3].text.strip().split()[1]
+        if (firstPass): 
+   
+            playerProfile['YTD '+key+' Wins'] = [elements[idx*tableWidth+2].text]
+            playerProfile['YTD '+key+' Loss'] = [elements[idx*tableWidth+4].text]
+            playerProfile['Career '+key+' Wins'] = [elements[idx*tableWidth+7].text]
+            playerProfile['Career '+key+' Loss'] = [elements[idx*tableWidth+9].text]
+            if (not (not titles)):
+                # if titles not empty
+                playerProfile[key+' Titles'] = [elements[idx*tableWidth+11].text.split()[0]]
 
-        if (key == 'Weight'):
-            # strip out the S.I. units
-            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
-        if (key == 'Height'):
-            # strip out the S.I. units
-            value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
+        else:
+            playerProfile['YTD '+key+' Wins'].append(elements[idx*tableWidth+2].text)
+            playerProfile['YTD '+key+' Loss'].append(elements[idx*tableWidth+4].text)
+            playerProfile['Career '+key+' Wins'].append(elements[idx*tableWidth+7].text)
+            playerProfile['Career '+key+' Loss'].append(elements[idx*tableWidth+9].text)
+            if (not (not titles)):
+                playerProfile[key+' Titles'].append(elements[idx*tableWidth+11].text.split()[0])
 
-        details[key] = value
+    return playerProfile
 
-    # Get the main statistics
-    statsTable = html.findAll('div', {'class', 'stat-value'})
 
-    # Win - Loss
-    winLoss = statsTable[1].parent.contents[1].text.split('-')
-    wins = winLoss[0]
-    details['Win'] = wins
-    loss = winLoss[1]
-    details['Loss'] = loss
-    
-    # Titles
-    titles = statsTable[2].parent.contents[1].text
-    details['Titles'] = titles
 
-    # Prize money
-    prizeMoney = statsTable[3].parent.contents[1].text.replace('$','')
-    careerPrizeMoney =  prizeMoney.replace(',','')
-    details['Prize Money'] = careerPrizeMoney
 
 def titles():
     pass
 
-def playerStats():
+def get_Player_Stats():
     pass
 
 def rankingHistory():
@@ -489,12 +480,12 @@ if __name__ == '__main__':
                   'fedex-atp-win-loss',
                   'titles-and-finals',
                   'player-stats',
-                  'rankings-history',
-                  'rankings-breakdown']
+                  'rankings-history'] #,
+                  #'rankings-breakdown']
 
     content = get_html_content(mensATPranking)
     html = BeautifulSoup(content, 'html.parser')    
-    rankDate = html.find('div', {'class', 'dropdown-label'}).text.strip().replace('.','-')
+    rankDate = html.find('div', {'class': 'dropdown-label'}).text.strip().replace('.','-')
     
     # Set up the profile dictionary
     playerProfile = {}
@@ -523,63 +514,64 @@ if __name__ == '__main__':
             # Loop through the profile tabs
             extension = urlExtension.split('/')
                      
-            for tab in playerTabs:
+            #for tab in playerTabs:
                 
-                # remove the first unwanted tab from the url
-                del extension[-1]
+            # remove the first unwanted tab from the url
+            del extension[-1]
                
-                # Go to the next tab
-                extension.append(tab)
-                urlExtension = '/'.join(extension)
-                print(home+urlExtension)
-                url = home+urlExtension
+            # Go to the next tab
+            #extension.append('player-activity')
+            urlExtension = '/'.join(extension)
+            print(home+urlExtension)
+            url = home+urlExtension
 
-                #content = get_html_content(home+urlExtension)
-                #html = BeautifulSoup(content, 'html.parser')
+            # Get the details from each tab
+        #if tab is 'player-activity':         # remove this comment when ready to complete
+            get_Player_Activity(player, url) #+'?year=all')
 
-                # Get the details from each tab
-                if tab is 'player-activity':                      # remove this comment when ready to complete
-                    get_Player_Activity(player, url) #+'?year=all')
+            if (firstPass):
+                playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)
+                
+                playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
+                #titles()
+                #get_Player_Stats()
+                #rankingHistory()
 
-                    #playerProfile.update(get_Career_Activity(home+urlExtension))
-                    if (firstPass):
-                        playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)
-                        firstPass = False
-                    else:
-                        playerProfile = get_Player_Details(player, playerProfile, url)
-
+                firstPass = False
+            else:
+                playerProfile = get_Player_Details(player, playerProfile, url)
+                playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
+                #titles()
+                #get_Player_Stats()
+                #rankingHistory()
                     
 
-                elif tab is 'fedex-atp-win-loss':
-                    WinLossStats()
-                    # Placehoder
-                    # Need to append each value to a key list to create the correct dictionary
+        #elif tab is 'fedex-atp-win-loss':
+        #    playerProfile = get_Win_Loss_Stats()
+        #    # append to playerProfile  
 
-                elif tab is 'titles-and-finals':
-                    titles()
-                    # Placehoder
-                elif tab is 'player-stats':
-                    playerStats()
-                    # Placehoder
-                elif tab is 'rankings-history':
-                    rankingHistory()
-                    # Placehoder
-                elif tab is 'rankings-breakdown':
-                    rankingBreakdown()
-                    # Placehoder
-                else:
-                    print (tab+' profile for '+player.text.strip()+' is not supported')
+        ##elif tab is 'titles-and-finals':
+        #    titles()
+        #    # Placehoder
+        ##elif tab is 'player-stats':
+        #    get_Player_Stats()
+        #    # Placehoder
+        #    # append to playerProfile
+
+        ##elif tab is 'rankings-history':
+        #    rankingHistory()
+            # Placehoder
+        #elif tab is 'rankings-breakdown':
+        #    rankingBreakdown()
+        #    # Placehoder
+        #else:
+        #    print (tab+' profile for '+player.text.strip()+' is not supported')
 
         playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
-        filename = 'C:\\Users\Beau\Documents\DataScience\Tennis\Ouput Files\Player_Stats.xlsx'
+        # replace empty strings with nans
+        
+        #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Player_Stats.xlsx'
+        filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Player_Stats.xlsx'
         playerStats.to_excel(filename, index=False)
 
-
-    #     profileDateFrame = pd.DataFrame.from_dict(tournamentDic, orient='columns')
-
-    ## Write the dataframe to a csv file.
-    #playerName = player.text.strip().replace(' ','_')
-    #filename = playerName+'.xlsx'
-    #sheet = 'Activity'
-    #profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
 
