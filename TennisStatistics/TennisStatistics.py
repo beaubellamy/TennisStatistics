@@ -10,7 +10,7 @@ import csv
 #import math
 #from fractions import Fraction
 #import re
-#from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import random
 #import itertools
@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 
 def is_good_response(resp):
     """
@@ -140,13 +140,14 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
                 value = item.contents[3].text.strip().split()[1]
 
             if (key == 'Weight'):
-                # strip out the S.I. units
+                # Strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
             if (key == 'Height'):
-                # strip out the S.I. units
+                # Strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
+            # Add the value to the dictionary
             playerProfile[key] = [value]
 
         
@@ -188,6 +189,7 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
                 # strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
+            # Add the value to the dictionary
             playerProfile[key].append(value)
 
         
@@ -215,6 +217,8 @@ def get_Player_Activity(player, url):
 
     This function writes the player activity to a xlsx file.
     """
+
+    # Add the player activity extension
     url += '/player-activity'
 
     content = get_html_content(url)
@@ -232,7 +236,7 @@ def get_Player_Activity(player, url):
 
     for tournament in tournaments:
         
-        # Strip out the details for each tournament
+        # Strip out the tournament details
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
@@ -250,7 +254,8 @@ def get_Player_Activity(player, url):
             prizeMoney = tournamentDetails[3].text.strip()
             financialCommitment = tournamentDetails[4].text.strip()
         else:
-            # For the national teams tournaments, that dont provide points or prize money
+            # For the national teams tournaments, that dont provide points or prize money, 
+            # Eg. olympics and Davis Cup
             prizeMoney = ''
             financialCommitment = ''
         
@@ -311,8 +316,7 @@ def get_Player_Activity(player, url):
 
                     firstTournament = False
                 else:
-                    # When we get on to the next tournament, we dont want to 
-                    # overwrite the last tournament results.
+                    # Append additional tournament details to the list.
                     tournamentDic['Tournament'].append(tournamentTitle)
                     tournamentDic['Location'].append(location)
                     tournamentDic['Date'].append(tournamentDate)
@@ -395,33 +399,41 @@ def get_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
-    #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
+    #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
     
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
     
 def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
-    
+    """
+    Get the year to date and career match record stats. This includes 
+    the wins and losses for various statistics.
+    """
+
+    # Add teh win loss extension
     url+= '/fedex-atp-win-loss'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
 
+    # Find the match record table
     matchRecord = html.find('div', {'id': 'matchRecordTableContainer'})
         
     # Find all the elements of the table
     elements = matchRecord.findAll('td')
+    # Each row has 12 elements
     tableWidth = 12
     recordElements = len(elements)//tableWidth
 
+    # Cycle through the elements in the table
     for idx in range(recordElements):
    
         key = elements[idx*tableWidth].text.strip()
         titles = elements[idx*tableWidth+11].text.split()
 
         if (firstPass): 
-   
+            # Create the first item in the list
             playerProfile['YTD '+key+' Wins'] = [elements[idx*tableWidth+2].text]
             playerProfile['YTD '+key+' Loss'] = [elements[idx*tableWidth+4].text]
             playerProfile['Career '+key+' Wins'] = [elements[idx*tableWidth+7].text]
@@ -439,6 +451,7 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
             if (not (not titles)):
                 playerProfile[key+' Titles'].append(elements[idx*tableWidth+11].text.split()[0])
 
+    # Return the updated dictionary
     return playerProfile
 
 
@@ -446,14 +459,19 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
 
 
 def get_Player_Stats(url,playerProfile, firstPass=False):
-    
+    """
+    Get the player career service and return record statistics.
+    """
+    # Add the player statistics extension
     url+= '/player-stats'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
 
+    # Find all the records in the table
     matchRecord = html.find('div', {'id': 'playerMatchFactsContainer'}).findAll('tr')
         
+    # Cylce throught each record
     for record in matchRecord:
 
         if (len(record.contents) > 3):
@@ -463,39 +481,70 @@ def get_Player_Stats(url,playerProfile, firstPass=False):
             else:
                 playerProfile[record.contents[1].text.strip()].append(record.contents[3].text.strip())
 
+    # Return the updated dictionary
     return playerProfile
 
 
 
 
-def get_Ranking_History(url, rankHistory, firstPass=False):
+def get_Ranking_History(player, url, rankHistory, firstPass=False):
+    """
+    Get the historical rankings form 2000 onwards.
+    """
 
+    # Add the ranking history extension
     url+= '/rankings-history'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
 
+    # Find the table of rankings 
     rankings = html.find('table', {'class': 'mega-table'}).findAll('tr')
-    
-    print ('rankings')
+   
+    # Add the player name
+    if (firstPass):
+        rankHistory['Player'] = [player.text.strip()]
+    else:
+        rankHistory['Player'].append(player.text.strip())
 
-    # Need to account for dates that aren't in other players list.
-    # Get the first date and calculate each key from there.
-    # values will be empty where a date is not in the players list.
+    # Get the first date in the table
+    firstDate = rankings[1].contents[1].text.strip()
+    date = datetime.strptime(firstDate,'%Y.%m.%d')
+    previous = date + timedelta(days=7)
 
-    # check date against key (string) 
-    
-    for rank in rankings:
+    # Relevant data starts and index 1
+    index = 1
 
-        key = rank.contents[1].text.strip()
-        value = rank.contents[3].text.strip()
+    # Define the stopping point of interest
+    while (date.year > 1999):
+        dateCheck = previous - timedelta(days=7)
 
-        if (key != 'Date'):
-            if (firstPass):
-                rankHistory[key] = [value]
+        if (index < len(rankings)):
+            date = datetime.strptime(rankings[index].contents[1].text.strip(),'%Y.%m.%d')
+            
+            # Check the date is the next expected date
+            if (dateCheck != date):
+                date = dateCheck
+                value = ''
+                index -= 1
             else:
-                rankHistory[key].append(value)
+                value = rankings[index].contents[3].text.strip()
+            
+            previous = date
 
+        else:
+            date -= timedelta(days=7)
+            value = ''
+
+        # Update the dictionary
+        if (firstPass):
+            rankHistory[date.strftime('%Y-%m-%d')] = [value]
+        else:
+            rankHistory[date.strftime('%Y-%m-%d')].append(value)
+
+        index += 1
+
+    # Return the updated dictionary
     return rankHistory
 
 
@@ -584,36 +633,14 @@ if __name__ == '__main__':
                 
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
                 playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
-                rankHistory = get_Ranking_History(url, rankHistory,firstPass=firstPass)
+                rankHistory = get_Ranking_History(player, url, rankHistory,firstPass=firstPass)
 
                 firstPass = False
             else:
                 playerProfile = get_Player_Details(player, playerProfile, url)
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
                 playerProfile = get_Player_Stats(url, playerProfile)
-                rankHistory = get_Ranking_History(url, rankHistory)
-                    
-
-        #elif tab is 'fedex-atp-win-loss':
-        #    playerProfile = get_Win_Loss_Stats()
-        #    # append to playerProfile  
-
-        ##elif tab is 'titles-and-finals':
-        #    titles()
-        #    # Placehoder
-        ##elif tab is 'player-stats':
-        #    get_Player_Stats()
-        #    # Placehoder
-        #    # append to playerProfile
-
-        ##elif tab is 'rankings-history':
-        #    rankingHistory()
-            # Placehoder
-        #elif tab is 'rankings-breakdown':
-        #    rankingBreakdown()
-        #    # Placehoder
-        #else:
-        #    print (tab+' profile for '+player.text.strip()+' is not supported')
+                rankHistory = get_Ranking_History(player, url, rankHistory)
 
         playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
         rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
@@ -624,7 +651,5 @@ if __name__ == '__main__':
         rankFile = filePath+'Rank_History.xlsx'
 
         playerStats.to_excel(playerFile, index=False)
-        rank.to_excel(filename, index=False)
-
-
+        rank.to_excel(rankFile, index=False)
 
