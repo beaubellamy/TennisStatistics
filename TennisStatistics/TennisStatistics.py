@@ -103,7 +103,7 @@ def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
     Get the players home page
     """
 
-    rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
+    rankPage = mensATPranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
     content = get_html_content(mensATPranking)
     html = BeautifulSoup(content, 'html.parser')
     # Find all the players
@@ -211,7 +211,7 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
 
     return playerProfile
 
-def get_Player_Activity(player, url):
+def write_Player_Activity(player, url):
     """
     Get all the results from each tournament.
 
@@ -219,7 +219,7 @@ def get_Player_Activity(player, url):
     """
 
     # Add the player activity extension
-    url += '/player-activity'
+    url += '/player-activity' #+'?year=all'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
@@ -487,7 +487,7 @@ def get_Player_Stats(url,playerProfile, firstPass=False):
 
 
 
-def get_Ranking_History(player, url, rankHistory, firstPass=False):
+def get_Ranking_History(player, url, firstDate, rankHistory, firstPass=False):
     """
     Get the historical rankings form 2000 onwards.
     """
@@ -507,8 +507,7 @@ def get_Ranking_History(player, url, rankHistory, firstPass=False):
     else:
         rankHistory['Player'].append(player.text.strip())
 
-    # Get the first date in the table
-    firstDate = rankings[1].contents[1].text.strip()
+    # Convert the date string into a date time object
     date = datetime.strptime(firstDate,'%Y.%m.%d')
     previous = date + timedelta(days=7)
 
@@ -549,41 +548,18 @@ def get_Ranking_History(player, url, rankHistory, firstPass=False):
 
 
 
-def rankingBreakdown():
-    pass
-
-
 if __name__ == '__main__':
     """
     Extract the history of each player.
     """
-
-    # Create the list of proxies.
-    #proxies = get_proxies()
-    #proxy_pool = cycle(proxies)
-
-    # Create the list of user agents
-    #agents = get_user_agents()
-
-    # Get a list of each players
-    #playerFile = 'C:\\Users\Beau\Documents\DataScience\Tennis\Tennis Players.xlsx'
-    #players = pd.read_excel(playerFile,header=0)
-    #playerNames = players['Name']
-    
+  
     # Set the base url to start searching for each player profile.
-    mensATPranking = 'https://www.atpworldtour.com/en/rankings/singles'
     home = 'https://www.atpworldtour.com'
-    # Set the url tabs that we want to look at
-    playerTabs = ['player-activity',
-                  'fedex-atp-win-loss',
-                  'titles-and-finals',
-                  'player-stats',
-                  'rankings-history'] #,
-                  #'rankings-breakdown']
-
+    mensATPranking = home+'/en/rankings/singles'
+    
     content = get_html_content(mensATPranking)
     html = BeautifulSoup(content, 'html.parser')    
-    rankDate = html.find('div', {'class': 'dropdown-label'}).text.strip().replace('.','-')
+    rankDate = html.find('div', {'class': 'dropdown-label'}).text.strip()
     
     # Set up the profile dictionary
     playerProfile = {}
@@ -595,61 +571,50 @@ if __name__ == '__main__':
         startRank = page * 100
         endRank = (page + 1) * 100
 
-        # build the ranking page
-        #rankPage = mensATPranking+'?rankDate='+rankDate+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
-        #content = get_html_content(mensATPranking)
-        #html = BeautifulSoup(content, 'html.parser')
-        ## Find all the players
-        #players = html.findAll('td', {'class', 'player-cell'})
-
         # Get a list of players on each page
         players = get_Players_Page(mensATPranking,rankDate,startRank,endRank)
 
         # Loop through each player profiles
         for player in players[:5]:
             urlExtension = player.contents[1].attrs['href']
-
             
             # Loop through the profile tabs
             extension = urlExtension.split('/')
-                     
-            #for tab in playerTabs:
-                
-            # remove the first unwanted tab from the url
+
+            # Remove the last element from the url string
             del extension[-1]
                
-            # Go to the next tab
-            #extension.append('player-activity')
+            # Add the extension to the url
             urlExtension = '/'.join(extension)
             print(home+urlExtension)
             url = home+urlExtension
 
             # Get the details from each tab
-        #if tab is 'player-activity':         # remove this comment when ready to complete
-            get_Player_Activity(player, url) #+'?year=all')
+            write_Player_Activity(player, url)
 
             if (firstPass):
-                playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)
-                
+                playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
                 playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
-                rankHistory = get_Ranking_History(player, url, rankHistory,firstPass=firstPass)
+
+                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory,firstPass=firstPass)
 
                 firstPass = False
             else:
                 playerProfile = get_Player_Details(player, playerProfile, url)
                 playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
                 playerProfile = get_Player_Stats(url, playerProfile)
-                rankHistory = get_Ranking_History(player, url, rankHistory)
 
+                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory)
+
+        # Convert dictionaries to data frames
         playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
         rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
 
-        # replace empty strings with nans
-        
-        playerFile = filePath+'Player_Stats.xlsx'
-        rankFile = filePath+'Rank_History.xlsx'
+        playerFile = filePath+'Player_Profile.xlsx'
+        #rankFile = filePath+'Rank_History.xlsx'
 
-        playerStats.to_excel(playerFile, index=False)
-        rank.to_excel(rankFile, index=False)
-
+        writer = pd.ExcelWriter(playerFile)
+        playerStats.to_excel(writer,sheet_name='Player Statistics', index=False)
+        rank.to_excel(writer,sheet_name='Rank History', index=False)
+        writer.save()
