@@ -219,7 +219,7 @@ def write_Player_Activity(player, url):
     """
 
     # Add the player activity extension
-    url += '/player-activity' #+'?year=all'
+    url += '/player-activity?year=all'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
@@ -283,6 +283,10 @@ def write_Player_Activity(player, url):
             # Only need to use the last 5 values 
             roundResult = values[-5:]
             
+            if ('(INV)' in roundResult[4]):
+                break
+                # If the round is ruled invalid, ignore the whole round (No results are published)
+
             if (firstRow):
                 if (firstTournament):
                     # First row of the first tournament
@@ -310,7 +314,15 @@ def write_Player_Activity(player, url):
                         if (index >= len(roundResult[4])):
                             score = '--'
                         else:
-                            score = roundResult[4][index]
+                            if (index+1 < len(roundResult[4])):
+                                if (roundResult[4][index+1] == '(RET)'):
+                                    score = roundResult[4][index]+' (Retired)'
+                                    roundResult[4].remove('(RET)')
+
+                                else:
+                                    score = roundResult[4][index]
+                            else:
+                                score = '--'
 
                         tournamentDic[key] = [score]                    
 
@@ -353,7 +365,15 @@ def write_Player_Activity(player, url):
                         if (index >= len(roundResult[4])):
                             score = '--'
                         else:
-                            score = roundResult[4][index]
+                            if (index+1 < len(roundResult[4])):
+                                if (roundResult[4][index+1] == '(RET)'):
+                                    score = roundResult[4][index]+' (Retired)'
+                                    roundResult[4].remove('(RET)')
+
+                                else:
+                                    score = roundResult[4][index]
+                            else:
+                                score = '--'
 
                         tournamentDic[key].append(score)
                         
@@ -388,7 +408,15 @@ def write_Player_Activity(player, url):
                     if (index >= len(roundResult[4])):
                         score = '--'
                     else:
-                        score = roundResult[4][index]
+                        if (index+1 < len(roundResult[4])):
+                            if (roundResult[4][index+1] == '(RET)'):
+                                score = roundResult[4][index]+' (Retired)'
+                                roundResult[4].remove('(RET)')
+
+                            else:
+                                score = roundResult[4][index]
+                        else:
+                            score = '--'
 
                     tournamentDic[key].append(score)
 
@@ -575,7 +603,7 @@ if __name__ == '__main__':
         players = get_Players_Page(mensATPranking,rankDate,startRank,endRank)
 
         # Loop through each player profiles
-        for player in players[:5]:
+        for player in players:
             urlExtension = player.contents[1].attrs['href']
             
             # Loop through the profile tabs
