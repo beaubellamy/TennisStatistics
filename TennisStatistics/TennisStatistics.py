@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 
 def is_good_response(resp):
     """
@@ -98,13 +98,13 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
 
-def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
+def get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank):
     """
     Get the players home page
     """
 
-    rankPage = mensATPranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
-    content = get_html_content(mensATPranking)
+    rankPage = mens_ATP_Ranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
+    content = get_html_content(rankPage)
     html = BeautifulSoup(content, 'html.parser')
     # Find all the players
     
@@ -114,7 +114,7 @@ def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
 
 def get_Player_Details(player, playerProfile, url, firstPass = False):
     """
-    Update the player profile dictionary with the biographical informaiton for the current player.
+    Update the player profile dictionary with the biographical information for the current player.
     """
     url += '/player-activity'
     content = get_html_content(url)
@@ -219,7 +219,7 @@ def write_Player_Activity(player, url):
     """
 
     # Add the player activity extension
-    url += '/player-activity?year=all'
+    url += '/player-activity?year=all&matchType=Singles'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
@@ -240,6 +240,7 @@ def write_Player_Activity(player, url):
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
+        print (tournamentTitle+': '+tournamentDate)
         caption = tournament.find('div', {'class': 'activity-tournament-caption'})
         tournamentDetails =  tournament.findAll('span', {'class': 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
@@ -274,6 +275,9 @@ def write_Player_Activity(player, url):
         values = []
         firstRow = True
 
+        if (not rows):
+            break
+
         # Go through each round and extract the opponents details and the scores.
         for row in rows:
 
@@ -283,9 +287,12 @@ def write_Player_Activity(player, url):
             # Only need to use the last 5 values 
             roundResult = values[-5:]
             
-            if ('(INV)' in roundResult[4]):
+            if ('(INV)' in roundResult[4] or    # Ref: Grigor Dimitrov
+                '(ABN)' in roundResult[4] or    # Ref: Ryan Harrison
+                '(UNP)' in roundResult[4] or    # Ref: Feliciano Lopez
+                '(WEA)' in roundResult[4]):     # Ref: Dusan Lajovic
                 break
-                # If the round is ruled invalid, ignore the whole round (No results are published)
+                # Not sure what these values mean
 
             if (firstRow):
                 if (firstTournament):
@@ -321,6 +328,9 @@ def write_Player_Activity(player, url):
 
                                 else:
                                     score = roundResult[4][index]
+                                    if (score == '(W/O)'):
+                                        score = 'Withdrawn'
+
                             else:
                                 score = '--'
 
@@ -372,6 +382,9 @@ def write_Player_Activity(player, url):
 
                                 else:
                                     score = roundResult[4][index]
+                                    if (score == '(W/O)'):
+                                        score = 'Withdrawn'
+
                             else:
                                 score = '--'
 
@@ -415,6 +428,9 @@ def write_Player_Activity(player, url):
 
                             else:
                                 score = roundResult[4][index]
+                                if (score == '(W/O)'):
+                                    score = 'Withdrawn'
+
                         else:
                             score = '--'
 
@@ -427,8 +443,8 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
-    filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
     
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
@@ -583,9 +599,9 @@ if __name__ == '__main__':
   
     # Set the base url to start searching for each player profile.
     home = 'https://www.atpworldtour.com'
-    mensATPranking = home+'/en/rankings/singles'
+    mens_ATP_Ranking = home+'/en/rankings/singles'
     
-    content = get_html_content(mensATPranking)
+    content = get_html_content(mens_ATP_Ranking)
     html = BeautifulSoup(content, 'html.parser')    
     rankDate = html.find('div', {'class': 'dropdown-label'}).text.strip()
     
@@ -594,55 +610,63 @@ if __name__ == '__main__':
     rankHistory = {}
     firstPass = True
 
-    # look through each of the ranking pages
-    for page in range(1):
-        startRank = page * 100
-        endRank = (page + 1) * 100
+    # Set the ranking boundaries of interest
+    startRank = 1
+    endRank = 500
 
-        # Get a list of players on each page
-        players = get_Players_Page(mensATPranking,rankDate,startRank,endRank)
+    # Get a list of all players in the rank range
+    players = get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank)
 
-        # Loop through each player profiles
-        for player in players:
-            urlExtension = player.contents[1].attrs['href']
+    # Loop through each player profiles
+    for player in players:
+        urlExtension = player.contents[1].attrs['href']
             
-            # Loop through the profile tabs
-            extension = urlExtension.split('/')
+        # Loop through the profile tabs
+        extension = urlExtension.split('/')
 
-            # Remove the last element from the url string
-            del extension[-1]
+        # Remove the last element from the url string
+        del extension[-1]
                
-            # Add the extension to the url
-            urlExtension = '/'.join(extension)
-            print(home+urlExtension)
-            url = home+urlExtension
+        # Add the extension to the url
+        urlExtension = '/'.join(extension)
+        print(home+urlExtension)
+        url = home+urlExtension
 
-            # Get the details from each tab
-            write_Player_Activity(player, url)
+        # Get the details from each tab
+        write_Player_Activity(player, url)
 
-            if (firstPass):
-                playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
-                playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
-                playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
+        if (firstPass):
+            playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
+            playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
+            playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
 
-                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory,firstPass=firstPass)
+            rankHistory = get_Ranking_History(player, url, rankDate, rankHistory,firstPass=firstPass)
 
-                firstPass = False
-            else:
-                playerProfile = get_Player_Details(player, playerProfile, url)
-                playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
-                playerProfile = get_Player_Stats(url, playerProfile)
+            firstPass = False
+        else:
+            playerProfile = get_Player_Details(player, playerProfile, url)
+            playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
+            playerProfile = get_Player_Stats(url, playerProfile)
 
-                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory)
+            rankHistory = get_Ranking_History(player, url, rankDate, rankHistory)
+                
+        # Check the dictionary keys have the same size, 
+        # this adds a value where there is missing data
+        size = len(playerProfile['Player'])
+        for key, _ in playerProfile.items():
+            if (len(playerProfile[key]) < size):
+                playerProfile[key].append('--')
 
-        # Convert dictionaries to data frames
-        playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
-        rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
+    # Convert dictionaries to data frames
+    playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
+    rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
+    
+    # Create the statistics file
+    playerFile = filePath+'Player_Profile.xlsx'
+    # Write the player statistics and ranking history to the file.
+    writer = pd.ExcelWriter(playerFile)
+    playerStats.to_excel(writer,sheet_name='Player Statistics', index=False)
+    rank.to_excel(writer,sheet_name='Rank History', index=False)
+    writer.save()
 
-        playerFile = filePath+'Player_Profile.xlsx'
-        #rankFile = filePath+'Rank_History.xlsx'
-
-        writer = pd.ExcelWriter(playerFile)
-        playerStats.to_excel(writer,sheet_name='Player Statistics', index=False)
-        rank.to_excel(writer,sheet_name='Rank History', index=False)
-        writer.save()
+    
