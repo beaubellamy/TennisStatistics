@@ -98,13 +98,13 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
 
-def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
+def get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank):
     """
     Get the players home page
     """
 
-    rankPage = mensATPranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
-    content = get_html_content(mensATPranking)
+    rankPage = mens_ATP_Ranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
+    content = get_html_content(rankPage)
     html = BeautifulSoup(content, 'html.parser')
     # Find all the players
     
@@ -114,7 +114,7 @@ def get_Players_Page(mensATPranking,rankDate,startRank,endRank):
 
 def get_Player_Details(player, playerProfile, url, firstPass = False):
     """
-    Update the player profile dictionary with the biographical informaiton for the current player.
+    Update the player profile dictionary with the biographical information for the current player.
     """
     url += '/player-activity'
     content = get_html_content(url)
@@ -219,7 +219,7 @@ def write_Player_Activity(player, url):
     """
 
     # Add the player activity extension
-    url += '/player-activity?year=all'
+    url += '/player-activity?year=all&matchType=Singles'
 
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
@@ -240,7 +240,7 @@ def write_Player_Activity(player, url):
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
-        print (tournamentTitle+': '+location+' - '+tournamentDate)
+        print (tournamentTitle+': '+tournamentDate)
         caption = tournament.find('div', {'class': 'activity-tournament-caption'})
         tournamentDetails =  tournament.findAll('span', {'class': 'item-value'})
         singlesDraw = tournamentDetails[0].text.strip()
@@ -275,130 +275,87 @@ def write_Player_Activity(player, url):
         values = []
         firstRow = True
 
+        if (not rows):
+            continue
+
         # Go through each round and extract the opponents details and the scores.
-        if (not (not rows)):
-            # If rows is not empty
-            for row in rows:
+        for row in rows:
 
-                for index in range(1,len(row.contents),2):
-                    values.append(row.contents[index].text.split())
+            for index in range(1,len(row.contents),2):
+                values.append(row.contents[index].text.split())
             
-                # Only need to use the last 5 values 
-                roundResult = values[-5:]
+            # Only need to use the last 5 values 
+            roundResult = values[-5:]
             
-                if ('(INV)' in roundResult[4]):
-                    break
-                    # If the round is ruled invalid, ignore the whole round (No results are published)
+        if ('(INV)' in roundResult[4]):
+            break
+            # If the round is ruled invalid, ignore the whole round (No results are published)
 
-                if (firstRow):
-                    if (firstTournament):
-                        # First row of the first tournament
-                        tournamentDic['Tournament'] = [tournamentTitle]
-                        tournamentDic['Location'] = [location]
-                        tournamentDic['Date'] = [tournamentDate]
-                        tournamentDic['Surface'] = [surface]
-                        tournamentDic['# Singles Draw'] = [singlesDraw]
-                        tournamentDic['# Doubles Draw'] = [doublesDraw]
-                        tournamentDic['Prize Money'] = [prizeMoney]
-                        tournamentDic['Financial Commitment'] = [financialCommitment]
-                        tournamentDic['Points'] = [pointsEarned]
-                        tournamentDic['Rank at Tournament'] = [rank]
-                        tournamentDic['Prize Money Earned'] = [prizeMoneyEarned]
+            if (firstRow):
+                if (firstTournament):
+                    # First row of the first tournament
+                    tournamentDic['Tournament'] = [tournamentTitle]
+                    tournamentDic['Location'] = [location]
+                    tournamentDic['Date'] = [tournamentDate]
+                    tournamentDic['Surface'] = [surface]
+                    tournamentDic['# Singles Draw'] = [singlesDraw]
+                    tournamentDic['# Doubles Draw'] = [doublesDraw]
+                    tournamentDic['Prize Money'] = [prizeMoney]
+                    tournamentDic['Financial Commitment'] = [financialCommitment]
+                    tournamentDic['Points'] = [pointsEarned]
+                    tournamentDic['Rank at Tournament'] = [rank]
+                    tournamentDic['Prize Money Earned'] = [prizeMoneyEarned]
 
-                        tournamentDic[headings[0]] = [' '.join(roundResult[0])]
-                        tournamentDic[headings[1]] = roundResult[1]
-                        tournamentDic[headings[2]] = [' '.join(roundResult[2])]
-                        tournamentDic[headings[3]] = roundResult[3]
-
-                        # Get results for each set
-                        for index in range(5):
-                            key = ' Set '+str(index+1)
-                
-                            if (index >= len(roundResult[4])):
-                                score = '--'
-                            else:
-                                if (index+1 < len(roundResult[4])):
-                                    if (roundResult[4][index+1] == '(RET)'):
-                                        score = roundResult[4][index]+' (Retired)'
-                                        roundResult[4].remove('(RET)')
-
-                                    else:
-                                        score = roundResult[4][index]
-                                else:
-                                    if (roundResult[4][index] == '(W/O)'):
-                                        score = '(Walkover)'
-                                    else:
-                                        score = '--'
-
-                            tournamentDic[key] = [score]                    
-
-                        firstTournament = False
+                    tournamentDic[headings[0]] = [' '.join(roundResult[0])]
+                    tournamentDic[headings[2]] = [' '.join(roundResult[2])]
+                    if ('Bye' in roundResult[2]):
+                        # Player has a bye for this round
+                        tournamentDic[headings[1]] = ['']         # Opponent rank
+                        tournamentDic[headings[3]] = ['']         # Result (W or L)
                     else:
-                        # Append additional tournament details to the list.
-                        tournamentDic['Tournament'].append(tournamentTitle)
-                        tournamentDic['Location'].append(location)
-                        tournamentDic['Date'].append(tournamentDate)
-                        tournamentDic['Surface'].append(surface)
-                        tournamentDic['# Singles Draw'].append(singlesDraw)
-                        tournamentDic['# Doubles Draw'].append(doublesDraw)
-                        tournamentDic['Rank at Tournament'].append(rank)
+                        tournamentDic[headings[1]] = [roundResult[1][0]]         # Opponent rank
+                        tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
 
-                        if (firstRow):
-                            tournamentDic['Prize Money'].append(prizeMoney)
-                            tournamentDic['Financial Commitment'].append(financialCommitment)
-                            tournamentDic['Points'].append(pointsEarned)
-                            tournamentDic['Prize Money Earned'].append(prizeMoneyEarned)
-                        else:
-                            tournamentDic['Prize Money'].append('')
-                            tournamentDic['Financial Commitment'].append('')
-                            tournamentDic['Points'].append('')
-                            tournamentDic['Prize Money Earned'].append('')
-
-                        tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
-                        tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
-                        if ('Bye' in roundResult[2]):
-                            # Player has a bye for this round
-                            tournamentDic[headings[1]].append('')         # Opponent rank
-                            tournamentDic[headings[3]].append('')         # Result (W or L)
-                        else:
-                            tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
-                            tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
-
-                        # Get results for each set
-                        for index in range(5):
-                            key = ' Set '+str(index+1)
+                    # Get results for each set
+                    for index in range(5):
+                        key = ' Set '+str(index+1)
                 
-                            if (index >= len(roundResult[4])):
-                                score = '--'
+                        if (index >= len(roundResult[4])):
+                            score = '--'
+                        else:
+                            if (index+1 < len(roundResult[4])):
+                                if (roundResult[4][index+1] == '(RET)'):
+                                    score = roundResult[4][index]+' (Retired)'
+                                    roundResult[4].remove('(RET)')
+
                             else:
-                                if (index+1 < len(roundResult[4])):
-                                    if (roundResult[4][index+1] == '(RET)'):
-                                        score = roundResult[4][index]+' (Retired)'
-                                        roundResult[4].remove('(RET)')
+                                score = roundResult[4][index]
+                                if (score == '(W/O)'):
+                                    score = '(Walkover)'
 
-                                    else:
-                                        score = roundResult[4][index]
-                                else:
-                                    if (roundResult[4][index] == '(W/O)'):
-                                        score = '(Walkover)'
-                                    else:
-                                        score = '--'
+                        tournamentDic[key] = [score]                    
 
-                            tournamentDic[key].append(score)
-                        
+                    firstTournament = False
                 else:
-                    # Remaining round details
+                    # Append additional tournament details to the list.
                     tournamentDic['Tournament'].append(tournamentTitle)
                     tournamentDic['Location'].append(location)
                     tournamentDic['Date'].append(tournamentDate)
                     tournamentDic['Surface'].append(surface)
                     tournamentDic['# Singles Draw'].append(singlesDraw)
                     tournamentDic['# Doubles Draw'].append(doublesDraw)
-                    tournamentDic['Prize Money'].append('')
-                    tournamentDic['Financial Commitment'].append('')
-                    tournamentDic['Points'].append('')
                     tournamentDic['Rank at Tournament'].append(rank)
-                    tournamentDic['Prize Money Earned'].append('')
+
+                    if (firstRow):
+                        tournamentDic['Prize Money'].append(prizeMoney)
+                        tournamentDic['Financial Commitment'].append(financialCommitment)
+                        tournamentDic['Points'].append(pointsEarned)
+                        tournamentDic['Prize Money Earned'].append(prizeMoneyEarned)
+                    else:
+                        tournamentDic['Prize Money'].append('')
+                        tournamentDic['Financial Commitment'].append('')
+                        tournamentDic['Points'].append('')
+                        tournamentDic['Prize Money Earned'].append('')
 
                     tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
                     tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
@@ -422,15 +379,57 @@ def write_Player_Activity(player, url):
                                     score = roundResult[4][index]+' (Retired)'
                                     roundResult[4].remove('(RET)')
 
-                                else:
-                                    score = roundResult[4][index]
                             else:
-                                if (roundResult[4][index] == '(W/O)'):
+                                score = roundResult[4][index]
+                                if (score == '(W/O)'):
                                     score = '(Walkover)'
-                                else:
-                                    score = '--'
+
 
                         tournamentDic[key].append(score)
+                        
+            else:
+                # Remaining round details
+                tournamentDic['Tournament'].append(tournamentTitle)
+                tournamentDic['Location'].append(location)
+                tournamentDic['Date'].append(tournamentDate)
+                tournamentDic['Surface'].append(surface)
+                tournamentDic['# Singles Draw'].append(singlesDraw)
+                tournamentDic['# Doubles Draw'].append(doublesDraw)
+                tournamentDic['Prize Money'].append('')
+                tournamentDic['Financial Commitment'].append('')
+                tournamentDic['Points'].append('')
+                tournamentDic['Rank at Tournament'].append(rank)
+                tournamentDic['Prize Money Earned'].append('')
+
+                tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
+                tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
+                if ('Bye' in roundResult[2]):
+                    # Player has a bye for this round
+                    tournamentDic[headings[1]].append('')         # Opponent rank
+                    tournamentDic[headings[3]].append('')         # Result (W or L)
+                else:
+                    tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
+                    tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+
+                # Get results for each set
+                for index in range(5):
+                    key = ' Set '+str(index+1)
+                
+                    if (index >= len(roundResult[4])):
+                        score = '--'
+                    else:
+                        if (index+1 < len(roundResult[4])):
+                            if (roundResult[4][index+1] == '(RET)'):
+                                score = roundResult[4][index]+' (Retired)'
+                                roundResult[4].remove('(RET)')
+
+                        else:
+                            score = roundResult[4][index]
+                            if (score == '(W/O)'):
+                                score = '(Walkover)'
+
+
+                    tournamentDic[key].append(score)
 
             firstRow = False
 
@@ -595,9 +594,9 @@ if __name__ == '__main__':
   
     # Set the base url to start searching for each player profile.
     home = 'https://www.atpworldtour.com'
-    mensATPranking = home+'/en/rankings/singles'
+    mens_ATP_Ranking = home+'/en/rankings/singles'
     
-    content = get_html_content(mensATPranking)
+    content = get_html_content(mens_ATP_Ranking)
     html = BeautifulSoup(content, 'html.parser')    
     rankDate = html.find('div', {'class': 'dropdown-label'}).text.strip()
     
@@ -606,55 +605,63 @@ if __name__ == '__main__':
     rankHistory = {}
     firstPass = True
 
-    # look through each of the ranking pages
-    for page in range(1):
-        startRank = page * 100
-        endRank = (page + 1) * 100
+    # Set the ranking boundaries of interest
+    startRank = 1
+    endRank = 500
 
-        # Get a list of players on each page
-        players = get_Players_Page(mensATPranking,rankDate,startRank,endRank)
+    # Get a list of all players in the rank range
+    players = get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank)
 
-        # Loop through each player profiles
-        for player in players:
-            urlExtension = player.contents[1].attrs['href']
+    # Loop through each player profiles
+    for player in players:
+        urlExtension = player.contents[1].attrs['href']
             
-            # Loop through the profile tabs
-            extension = urlExtension.split('/')
+        # Loop through the profile tabs
+        extension = urlExtension.split('/')
 
-            # Remove the last element from the url string
-            del extension[-1]
+        # Remove the last element from the url string
+        del extension[-1]
                
-            # Add the extension to the url
-            urlExtension = '/'.join(extension)
-            print(home+urlExtension)
-            url = home+urlExtension
+        # Add the extension to the url
+        urlExtension = '/'.join(extension)
+        print(home+urlExtension)
+        url = home+urlExtension
 
-            # Get the details from each tab
-            write_Player_Activity(player, url)
+        # Get the details from each tab
+        write_Player_Activity(player, url)
 
-            if (firstPass):
-                playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
-                playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
-                playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
+        if (firstPass):
+            playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
+            playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
+            playerProfile = get_Player_Stats(url, playerProfile,firstPass=firstPass)
 
-                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory,firstPass=firstPass)
+            rankHistory = get_Ranking_History(player, url, rankDate, rankHistory,firstPass=firstPass)
 
-                firstPass = False
-            else:
-                playerProfile = get_Player_Details(player, playerProfile, url)
-                playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
-                playerProfile = get_Player_Stats(url, playerProfile)
+            firstPass = False
+        else:
+            playerProfile = get_Player_Details(player, playerProfile, url)
+            playerProfile = get_Win_Loss_Stats(player, playerProfile, url)
+            playerProfile = get_Player_Stats(url, playerProfile)
 
-                rankHistory = get_Ranking_History(player, url, rankDate, rankHistory)
+            rankHistory = get_Ranking_History(player, url, rankDate, rankHistory)
+                
+        # Check the dictionary keys have the same size, 
+        # this adds a value where there is missing data
+        size = len(playerProfile['Player'])
+        for key, _ in playerProfile.items():
+            if (len(playerProfile[key]) < size):
+                playerProfile[key].append('--')
 
-        # Convert dictionaries to data frames
-        playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
-        rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
+    # Convert dictionaries to data frames
+    playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
+    rank = pd.DataFrame.from_dict(rankHistory, orient='columns')
+    
+    # Create the statistics file
+    playerFile = filePath+'Player_Profile.xlsx'
+    # Write the player statistics and ranking history to the file.
+    writer = pd.ExcelWriter(playerFile)
+    playerStats.to_excel(writer,sheet_name='Player Statistics', index=False)
+    rank.to_excel(writer,sheet_name='Rank History', index=False)
+    writer.save()
 
-        playerFile = filePath+'Player_Profile.xlsx'
-        #rankFile = filePath+'Rank_History.xlsx'
-
-        writer = pd.ExcelWriter(playerFile)
-        playerStats.to_excel(writer,sheet_name='Player Statistics', index=False)
-        rank.to_excel(writer,sheet_name='Rank History', index=False)
-        writer.save()
+    
