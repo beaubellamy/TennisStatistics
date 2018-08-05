@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 
 def is_good_response(resp):
     """
@@ -55,17 +55,40 @@ def get_html_content(url, multiplier=1):
     
     # Get the html from the url
     try:
-        with closing(get(url)) as resp: #,
-        #                 headers={'User-Agent': random.choice(agents).rstrip()},
-        #                 proxies={"http": proxy, "https": proxy})) \
-        #as resp:
-            # Check the response status
-            if is_good_response(resp):
+        #with closing(get(url)) as resp: #,
+        ##                 headers={'User-Agent': random.choice(agents).rstrip()},
+        ##                 proxies={"http": proxy, "https": proxy})) \
+        ##as resp:
+        #    # Check the response status
+        #    if is_good_response(resp):
+        #        print ("Success: ",url)
+        #        return resp.content
+        #    else:
+        #        # Unable to get the url response
+        #        return None
+
+
+        # Alternative method to allow upto 5 attempts to 
+        # get a response from the website
+        resp = get(url)
+
+        attempts = 0
+        if is_good_response(resp):
                 print ("Success: ",url)
                 return resp.content
+
+        while (resp.status_code != 200 and attempts < 5):
+            if is_good_response(resp):
+                print ('Success: ',url)
+                return resp.content 
             else:
-                # Unable to get the url response
-                return None
+                attempts += 1
+                time.sleep(randomSleep*multiplier*attempts)
+                resp = get(url)
+
+        print ('Failed: '+ url)
+        return None
+
 
     except RequestException as e:
         print('Error during requests to {0} : {1}'.format(url, str(e)))
@@ -287,9 +310,12 @@ def write_Player_Activity(player, url):
             # Only need to use the last 5 values 
             roundResult = values[-5:]
             
-        if ('(INV)' in roundResult[4]):
-            break
-            # If the round is ruled invalid, ignore the whole round (No results are published)
+            if ('(INV)' in roundResult[4] or    # Ref: Grigor Dimitrov
+                '(ABN)' in roundResult[4] or    # Ref: Ryan Harrison
+                '(UNP)' in roundResult[4] or    # Ref: Feliciano Lopez
+                '(WEA)' in roundResult[4]):     # Ref: Dusan Lajovic
+                break
+                # If the round is ruled invalid, ignore the whole round (No results are published)
 
             if (firstRow):
                 if (firstTournament):
@@ -308,7 +334,7 @@ def write_Player_Activity(player, url):
 
                     tournamentDic[headings[0]] = [' '.join(roundResult[0])]
                     tournamentDic[headings[2]] = [' '.join(roundResult[2])]
-                    if ('Bye' in roundResult[2]):
+                    if (len(roundResult[2]) > 0 and 'Bye' in roundResult[2][0]):
                         # Player has a bye for this round
                         tournamentDic[headings[1]] = ['']         # Opponent rank
                         tournamentDic[headings[3]] = ['']         # Result (W or L)
@@ -323,13 +349,14 @@ def write_Player_Activity(player, url):
                         if (index >= len(roundResult[4])):
                             score = '--'
                         else:
+                            score = roundResult[4][index]
+                                
                             if (index+1 < len(roundResult[4])):
                                 if (roundResult[4][index+1] == '(RET)'):
                                     score = roundResult[4][index]+' (Retired)'
                                     roundResult[4].remove('(RET)')
 
                             else:
-                                score = roundResult[4][index]
                                 if (score == '(W/O)'):
                                     score = '(Walkover)'
 
@@ -359,7 +386,7 @@ def write_Player_Activity(player, url):
 
                     tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
                     tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
-                    if ('Bye' in roundResult[2]):
+                    if (len(roundResult[2]) > 0 and 'Bye' in roundResult[2][0]):
                         # Player has a bye for this round
                         tournamentDic[headings[1]].append('')         # Opponent rank
                         tournamentDic[headings[3]].append('')         # Result (W or L)
@@ -374,13 +401,14 @@ def write_Player_Activity(player, url):
                         if (index >= len(roundResult[4])):
                             score = '--'
                         else:
+                            score = roundResult[4][index]
+                                
                             if (index+1 < len(roundResult[4])):
                                 if (roundResult[4][index+1] == '(RET)'):
                                     score = roundResult[4][index]+' (Retired)'
                                     roundResult[4].remove('(RET)')
 
-                            else:
-                                score = roundResult[4][index]
+                            else:                                
                                 if (score == '(W/O)'):
                                     score = '(Walkover)'
 
@@ -403,7 +431,7 @@ def write_Player_Activity(player, url):
 
                 tournamentDic[headings[0]].append(' '.join(roundResult[0]))  # Round
                 tournamentDic[headings[2]].append(' '.join(roundResult[2]))  # Opponent
-                if ('Bye' in roundResult[2]):
+                if (len(roundResult[2]) > 0 and 'Bye' in roundResult[2][0]):
                     # Player has a bye for this round
                     tournamentDic[headings[1]].append('')         # Opponent rank
                     tournamentDic[headings[3]].append('')         # Result (W or L)
@@ -418,13 +446,14 @@ def write_Player_Activity(player, url):
                     if (index >= len(roundResult[4])):
                         score = '--'
                     else:
+                        score = roundResult[4][index]
+                                
                         if (index+1 < len(roundResult[4])):
                             if (roundResult[4][index+1] == '(RET)'):
                                 score = roundResult[4][index]+' (Retired)'
                                 roundResult[4].remove('(RET)')
 
                         else:
-                            score = roundResult[4][index]
                             if (score == '(W/O)'):
                                 score = '(Walkover)'
 
@@ -438,8 +467,8 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    #filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
-    filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
     
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
