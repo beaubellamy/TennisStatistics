@@ -304,6 +304,8 @@ def write_Player_Activity(player, url):
         # Go through each round and extract the opponents details and the scores.
         for row in rows:
 
+            completed = True
+
             for index in range(1,len(row.contents),2):
                 values.append(row.contents[index].text.split())
             
@@ -343,24 +345,68 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
 
                     # Get results for each set
-                    for index in range(5):
-                        key = ' Set '+str(index+1)
+                    #for index in range(5):
+                        #key = 'Set '+str(index+1)
                 
-                        if (index >= len(roundResult[4])):
-                            score = '--'
-                        else:
-                            score = roundResult[4][index]
+                        #if (index >= len(roundResult[4])):
+                        #    score = '--'
+                        #else:
+                        #    score = roundResult[4][index]
                                 
-                            if (index+1 < len(roundResult[4])):
-                                if (roundResult[4][index+1] == '(RET)'):
-                                    score = roundResult[4][index]+' (Retired)'
-                                    roundResult[4].remove('(RET)')
+                        #    if (index+1 < len(roundResult[4])):
+                        #        if (roundResult[4][index+1] == '(RET)'):
+                        #            score = roundResult[4][index]+' (Retired)'
+                        #            roundResult[4].remove('(RET)')
 
-                            else:
-                                if (score == '(W/O)'):
-                                    score = '(Walkover)'
+                        #    else:
+                        #        if (score == '(W/O)'):
+                        #            score = '(Walkover)'
 
-                        tournamentDic[key] = [score]                    
+                        #tournamentDic[key] = [score]                    
+
+
+                    for index in range(5):
+                        pKey = 'Player Set '+str(index+1)
+                        oKey = 'Opponent Set '+str(index+1)
+                                                
+                        if ('(RET)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(RET)')
+
+                        if ('(W/O)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(W/O)')
+
+                        if ('(DEF)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(DEF)')
+                            
+                        playerScore = '-'
+                        opponentScore = '-'
+
+                        if (index < len(roundResult[4])):
+                            score = roundResult[4][index]
+
+                            if (len(roundResult[4][index]) <= 3 ):
+                                if (len(score) >= 2):
+                                    playerScore = score[0]
+                                    opponentScore = score[1]
+                                # This ignores the tie break result
+                            else: # > 3
+                                if ('-' in score):
+                                    playerScore = score.split('-')[0]
+                                    opponentScore = score.split('-')[1]
+                                elif (score.isnumeric()):
+                                    playerScore = score[0]
+                                    opponentScore = score[1]
+                                    # This ignores the tie break result 
+                                else:
+                                    playerScore = -9
+                      
+
+                        tournamentDic[pKey] = [playerScore]
+                        tournamentDic[oKey] = [opponentScore]
+                    tournamentDic['Match Completed'] = [completed]
 
                     firstTournament = False
                 else:
@@ -395,26 +441,70 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
 
                     # Get results for each set
-                    for index in range(5):
-                        key = ' Set '+str(index+1)
+                    #for index in range(5):
+                    #    key = 'Set '+str(index+1)
                 
-                        if (index >= len(roundResult[4])):
-                            score = '--'
-                        else:
-                            score = roundResult[4][index]
+                    #    if (index >= len(roundResult[4])):
+                    #        score = '--'
+                    #    else:
+                    #        score = roundResult[4][index]
                                 
-                            if (index+1 < len(roundResult[4])):
-                                if (roundResult[4][index+1] == '(RET)'):
-                                    score = roundResult[4][index]+' (Retired)'
-                                    roundResult[4].remove('(RET)')
+                    #        if (index+1 < len(roundResult[4])):
+                    #            if (roundResult[4][index+1] == '(RET)'):
+                    #                score = roundResult[4][index]+' (Retired)'
+                    #                roundResult[4].remove('(RET)')
 
-                            else:                                
-                                if (score == '(W/O)'):
-                                    score = '(Walkover)'
+                    #        else:                                
+                    #            if (score == '(W/O)'):
+                    #                score = '(Walkover)'
 
 
-                        tournamentDic[key].append(score)
-                        
+                    #    tournamentDic[key].append(score)
+                       
+                    
+                    for index in range(5):
+                        pKey = 'Player Set '+str(index+1)
+                        oKey = 'Opponent Set '+str(index+1)
+                                                
+                        if ('(RET)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(RET)')
+
+                        if ('(W/O)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(W/O)')
+
+                        if ('(DEF)' in roundResult[4]):
+                            completed = False
+                            roundResult[4].remove('(DEF)')
+
+                        playerScore = '-'
+                        opponentScore = '-'
+
+                        if (index < len(roundResult[4])):
+                            score = roundResult[4][index]
+
+                            if (len(roundResult[4][index]) <= 3 ):
+                                if (len(score) >= 2):
+                                    playerScore = score[0]
+                                    opponentScore = score[1]
+                                    # This ignores the tie break result
+                            else: # > 3
+                                if ('-' in score):
+                                    playerScore = score.split('-')[0]
+                                    opponentScore = score.split('-')[1]
+                                elif (score.isnumeric()):
+                                    playerScore = score[0]
+                                    opponentScore = score[1]
+                                    # This ignores the tie break result 
+                                else:
+                                    playerScore = -9
+                      
+
+                        tournamentDic[pKey].append(playerScore)
+                        tournamentDic[oKey].append(opponentScore)
+                    tournamentDic['Match Completed'].append(completed)
+
             else:
                 # Remaining round details
                 tournamentDic['Tournament'].append(tournamentTitle)
@@ -440,25 +530,69 @@ def write_Player_Activity(player, url):
                     tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
 
                 # Get results for each set
-                for index in range(5):
-                    key = ' Set '+str(index+1)
+                #for index in range(5):
+                #    key = 'Set '+str(index+1)
                 
-                    if (index >= len(roundResult[4])):
-                        score = '--'
-                    else:
-                        score = roundResult[4][index]
+                #    if (index >= len(roundResult[4])):
+                #        score = '--'
+                #    else:
+                #        score = roundResult[4][index]
                                 
-                        if (index+1 < len(roundResult[4])):
-                            if (roundResult[4][index+1] == '(RET)'):
-                                score = roundResult[4][index]+' (Retired)'
-                                roundResult[4].remove('(RET)')
+                #        if (index+1 < len(roundResult[4])):
+                #            if (roundResult[4][index+1] == '(RET)'):
+                #                score = roundResult[4][index]+' (Retired)'
+                #                roundResult[4].remove('(RET)')
 
-                        else:
-                            if (score == '(W/O)'):
-                                score = '(Walkover)'
+                #        else:
+                #            if (score == '(W/O)'):
+                #                score = '(Walkover)'
 
 
-                    tournamentDic[key].append(score)
+                #    tournamentDic[key].append(score)
+
+
+                for index in range(5):
+                    pKey = 'Player Set '+str(index+1)
+                    oKey = 'Opponent Set '+str(index+1)
+                                                
+                    if ('(RET)' in roundResult[4]):
+                        completed = False
+                        roundResult[4].remove('(RET)')
+
+                    if ('(W/O)' in roundResult[4]):
+                        completed = False
+                        roundResult[4].remove('(W/O)')
+
+                    if ('(DEF)' in roundResult[4]):
+                        completed = False
+                        roundResult[4].remove('(DEF)')
+
+                    playerScore = '-'
+                    opponentScore = '-'
+
+                    if (index < len(roundResult[4])):
+                        score = roundResult[4][index]
+
+                        if (len(roundResult[4][index]) <= 3 ):
+                            if (len(score) >= 2):
+                                playerScore = score[0]
+                                opponentScore = score[1]
+                                # This ignores the tie break result
+                        else: # > 3
+                            if ('-' in score):
+                                playerScore = score.split('-')[0]
+                                opponentScore = score.split('-')[1]
+                            elif (score.isnumeric()):
+                                playerScore = score[0]
+                                opponentScore = score[1]
+                                # This ignores the tie break result 
+                            else:
+                                playerScore = -9
+                      
+
+                    tournamentDic[pKey].append(playerScore)
+                    tournamentDic[oKey].append(opponentScore)
+                tournamentDic['Match Completed'].append(completed)
 
             firstRow = False
 
@@ -467,7 +601,7 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Players Activity\\'+playerName+'.xlsx'
+    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Player Activity\\'+playerName+'.xlsx'
     #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
     
     sheet = 'Activity'
