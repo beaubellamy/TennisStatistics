@@ -23,9 +23,10 @@ import os
 import warnings
 import xlwt
 
-filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
-
+#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+home = 'https://www.atpworldtour.com'
+    
 def is_good_response(resp):
     """
     Ensures that the response is a html object.
@@ -234,6 +235,98 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
 
     return playerProfile
 
+def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False):
+
+    url = home+urlExtension
+    content = get_html_content(url)
+    html = BeautifulSoup(content, 'html.parser')
+
+    duration = html.find('td', {'class': 'time'}).text.strip().split(':')
+    if (len(duration) >= 4):
+        matchTime = float(duration[1])*60+float(duration[2])+float(duration[3])/60 # converts time to minutes
+    else:
+        print ('duration has not been calculated')
+
+    if (firstPass):
+        tournamentDic['Match Duration'] = [matchTime]
+    else:
+        tournamentDic['Match Duration'].append(matchTime)
+
+    stats = html.findAll('tr', {'class': 'match-stats-row percent-on'})
+
+    for stat in stats:
+        key = stat.contents[5].text.strip()
+
+        leftPlayer = stat.contents[1].text.strip().split()
+        rightPlayer = stat.contents[9].text.strip().split()
+
+        if (firstPass):
+
+            if (len(leftPlayer) > 1):
+                leftIn = leftPlayer[1].split('/')[0][1:]
+                leftAttempt = leftPlayer[1].split('/')[1][:-1]
+
+                rightIn = rightPlayer[1].split('/')[0][1:]
+                rightAttempt = rightPlayer[1].split('/')[1][:-1]
+
+
+                if (playerIsLeft):
+                    tournamentDic['Player '+key+' in'] = [leftIn]
+                    tournamentDic['Opponent '+key+' in'] = [rightIn]
+
+                    tournamentDic['Player '+key+' attempts'] = [leftAttempt]
+                    tournamentDic['Opponent '+key+' attempts'] = [rightAttempt]
+                else:
+                    tournamentDic['Player '+key+' in'] = [rightIn]
+                    tournamentDic['Opponent '+key+' in'] = [leftIn]
+
+                    tournamentDic['Player '+key+' attempts'] = [rightAttempt]
+                    tournamentDic['Opponent '+key+' attempts'] = [leftAttempt]
+
+            else:
+
+                if (playerIsLeft):
+                    tournamentDic['Player '+key] = [leftPlayer[0]]
+                    tournamentDic['Opponent '+key] = [rightPlayer[0]]
+                else:
+                    tournamentDic['Player '+key] = [rightPlayer[0]]
+                    tournamentDic['Opponent '+key] = [leftPlayer[0]]
+
+        else:
+            if (len(leftPlayer) > 1):
+                leftIn = leftPlayer[1].split('/')[0][1:]
+                leftAttempt = leftPlayer[1].split('/')[1][:-1]
+
+                rightIn = rightPlayer[1].split('/')[0][1:]
+                rightAttempt = rightPlayer[1].split('/')[1][:-1]
+
+
+                if (playerIsLeft):
+                    tournamentDic['Player '+key+' in'].append(leftIn)
+                    tournamentDic['Opponent '+key+' in'].append(rightIn)
+
+                    tournamentDic['Player '+key+' attempts'].append(leftAttempt)
+                    tournamentDic['Opponent '+key+' attempts'].append(rightAttempt)
+                else:
+                    tournamentDic['Player '+key+' in'].append(rightIn)
+                    tournamentDic['Opponent '+key+' in'].append(leftIn)
+
+                    tournamentDic['Player '+key+' attempts'].append(rightAttempt)
+                    tournamentDic['Opponent '+key+' attempts'].append(leftAttempt)
+
+            else:
+
+                if (playerIsLeft):
+                    tournamentDic['Player '+key].append(leftPlayer[0])
+                    tournamentDic['Opponent '+key].append(rightPlayer[0])
+                else:
+                    tournamentDic['Player '+key].append(rightPlayer[0])
+                    tournamentDic['Opponent '+key].append(leftPlayer[0])
+
+
+    return tournamentDic
+
+
 def write_Player_Activity(player, url):
     """
     Get all the results from each tournament.
@@ -305,6 +398,7 @@ def write_Player_Activity(player, url):
         for row in rows:
 
             completed = True
+            playerWins = True
 
             for index in range(1,len(row.contents),2):
                 values.append(row.contents[index].text.split())
@@ -315,7 +409,8 @@ def write_Player_Activity(player, url):
             if ('(INV)' in roundResult[4] or    # Ref: Grigor Dimitrov
                 '(ABN)' in roundResult[4] or    # Ref: Ryan Harrison
                 '(UNP)' in roundResult[4] or    # Ref: Feliciano Lopez
-                '(WEA)' in roundResult[4]):     # Ref: Dusan Lajovic
+                '(WEA)' in roundResult[4] or    # Ref: Dusan Lajovic
+                'Bye' in roundResult[2][0]):
                 break
                 # If the round is ruled invalid, ignore the whole round (No results are published)
 
@@ -343,6 +438,10 @@ def write_Player_Activity(player, url):
                     else:
                         tournamentDic[headings[1]] = [roundResult[1][0]]         # Opponent rank
                         tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
+
+                        if (roundResult[3][0] == 'L'):
+                            playerWins = False
+
 
                     # Get results for each set
                     #for index in range(5):
@@ -406,6 +505,11 @@ def write_Player_Activity(player, url):
 
                         tournamentDic[pKey] = [playerScore]
                         tournamentDic[oKey] = [opponentScore]
+                    
+                    # Get match statistics
+                    matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
+                    get_matchStats(matchStatsUrl, playerWins, tournamentDic, firstRow)
+                
                     tournamentDic['Match Completed'] = [completed]
 
                     firstTournament = False
@@ -439,6 +543,9 @@ def write_Player_Activity(player, url):
                     else:
                         tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
                         tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+                        
+                        if (roundResult[3][0] == 'L'):
+                            playerWins = False
 
                     # Get results for each set
                     #for index in range(5):
@@ -503,6 +610,12 @@ def write_Player_Activity(player, url):
 
                         tournamentDic[pKey].append(playerScore)
                         tournamentDic[oKey].append(opponentScore)
+ 
+                    # Get match statistics
+                    matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
+                    playerWins = True
+                    get_matchStats(matchStatsUrl, playerWins, tournamentDic)
+                
                     tournamentDic['Match Completed'].append(completed)
 
             else:
@@ -528,6 +641,9 @@ def write_Player_Activity(player, url):
                 else:
                     tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
                     tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+
+                    if (roundResult[3][0] == 'L'):
+                        playerWins = False
 
                 # Get results for each set
                 #for index in range(5):
@@ -592,6 +708,14 @@ def write_Player_Activity(player, url):
 
                     tournamentDic[pKey].append(playerScore)
                     tournamentDic[oKey].append(opponentScore)
+
+                # Get match statistics
+
+                matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
+                playerWins = True
+                get_matchStats(matchStatsUrl, playerWins, tournamentDic)
+                
+                    
                 tournamentDic['Match Completed'].append(completed)
 
             firstRow = False
@@ -601,9 +725,9 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    filename = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\Player Activity\\'+playerName+'.xlsx'
-    #filename = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\Players Activity\\'+playerName+'.xlsx'
-    
+    #filename =  filepath+'\Player Activity\\'+playerName+'.xlsx'
+    filename = filepath+'\Players Activity\\'+playerName+'.xlsx'
+                
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
     
@@ -756,7 +880,6 @@ if __name__ == '__main__':
     """
   
     # Set the base url to start searching for each player profile.
-    home = 'https://www.atpworldtour.com'
     mens_ATP_Ranking = home+'/en/rankings/singles'
     
     content = get_html_content(mens_ATP_Ranking)
