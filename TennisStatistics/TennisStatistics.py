@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 home = 'https://www.atpworldtour.com'
     
 def is_good_response(resp):
@@ -326,6 +326,17 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
     return tournamentDic
 
+def tournementSeries(argument):
+    switcher = {
+        'grandslam': 'Grand Slam',
+        '1000s': 'ATP Masters 1000',
+        '500': 'ATP World Tour 500',
+        '250': 'ATP World Tour 250',
+        'itf': 'ITF Tournament',
+        'atp': 'Nitto ATP Finals',
+    }
+    return switcher.get(argument, "Unknown")
+
 
 def write_Player_Activity(player, url):
     """
@@ -357,6 +368,8 @@ def write_Player_Activity(player, url):
         # ITF matches fail when trying to get match statistics because they aren't available
         # ['grandslam', '1000s', '500', '250', 'itf', 'atp']
         # ['Grand Slam', ...                        , 'Nitto ATP Finals' ]
+
+
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
@@ -401,7 +414,7 @@ def write_Player_Activity(player, url):
         # Go through each round and extract the opponents details and the scores.
         for row in rows:
 
-            completed = True
+            completed = 'Completed'
             playerWins = True
             matchStats = True
             if (Series == 'itf'):
@@ -426,6 +439,7 @@ def write_Player_Activity(player, url):
                     # First row of the first tournament
                     tournamentDic['Tournament'] = [tournamentTitle]
                     tournamentDic['Location'] = [location]
+                    tournamentDic['Series'] = [tournementSeries(Series)]
                     tournamentDic['Date'] = [tournamentDate]
                     tournamentDic['Surface'] = [surface]
                     tournamentDic['# Singles Draw'] = [singlesDraw]
@@ -476,16 +490,16 @@ def write_Player_Activity(player, url):
                         oKey = 'Opponent Set '+str(index+1)
                                                 
                         if ('(RET)' in roundResult[4]):
-                            completed = False
+                            completed = 'Retired'
                             roundResult[4].remove('(RET)')
 
                         if ('(W/O)' in roundResult[4]):
-                            completed = False
+                            completed = 'Walkover'
                             matchStats = False
                             roundResult[4].remove('(W/O)')
 
                         if ('(DEF)' in roundResult[4]):
-                            completed = False
+                            completed = 'Incomplete'
                             matchStats = False
                             roundResult[4].remove('(DEF)')
                             
@@ -532,6 +546,7 @@ def write_Player_Activity(player, url):
                     # Append additional tournament details to the list.
                     tournamentDic['Tournament'].append(tournamentTitle)
                     tournamentDic['Location'].append(location)
+                    tournamentDic['Series'].append(tournementSeries(Series))
                     tournamentDic['Date'].append(tournamentDate)
                     tournamentDic['Surface'].append(surface)
                     tournamentDic['# Singles Draw'].append(singlesDraw)
@@ -589,16 +604,16 @@ def write_Player_Activity(player, url):
                         oKey = 'Opponent Set '+str(index+1)
                                                 
                         if ('(RET)' in roundResult[4]):
-                            completed = False
+                            completed = 'Retired'
                             roundResult[4].remove('(RET)')
 
                         if ('(W/O)' in roundResult[4]):
-                            completed = False
+                            completed = 'Walkover'
                             matchStats = False
                             roundResult[4].remove('(W/O)')
 
                         if ('(DEF)' in roundResult[4]):
-                            completed = False
+                            completed = 'Incomplete'
                             matchStats = False
                             roundResult[4].remove('(DEF)')
 
@@ -645,6 +660,7 @@ def write_Player_Activity(player, url):
                 # Remaining round details
                 tournamentDic['Tournament'].append(tournamentTitle)
                 tournamentDic['Location'].append(location)
+                tournamentDic['Series'].append(tournementSeries(Series))
                 tournamentDic['Date'].append(tournamentDate)
                 tournamentDic['Surface'].append(surface)
                 tournamentDic['# Singles Draw'].append(singlesDraw)
@@ -695,16 +711,16 @@ def write_Player_Activity(player, url):
                     oKey = 'Opponent Set '+str(index+1)
                                                 
                     if ('(RET)' in roundResult[4]):
-                        completed = False
+                        completed = 'Retired'
                         roundResult[4].remove('(RET)')
 
                     if ('(W/O)' in roundResult[4]):
-                        completed = False
+                        completed = 'Walkover'
                         matchStats = False
                         roundResult[4].remove('(W/O)')
 
                     if ('(DEF)' in roundResult[4]):
-                        completed = False
+                        completed = 'Incomplete'
                         matchStats = False
                         roundResult[4].remove('(DEF)')
 
@@ -753,8 +769,8 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    #filename =  filepath+'\Player Activity\\'+playerName+'.xlsx'
-    filename = filepath+'\Players Activity\\'+playerName+'.xlsx'
+    filename =  filePath+'\Player Activity\\'+playerName+'.xlsx'
+    #filename = filePath+'\Players Activity\\'+playerName+'.xlsx'
                 
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
