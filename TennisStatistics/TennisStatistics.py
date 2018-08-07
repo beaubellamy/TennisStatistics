@@ -27,6 +27,15 @@ import xlwt
 filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 home = 'https://www.atpworldtour.com'
     
+
+
+def intTryParse(value):
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
 def is_good_response(resp):
     """
     Ensures that the response is a html object.
@@ -382,6 +391,7 @@ def write_Player_Activity(player, url):
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
+        print (tournamentTitle+': '+tournamentDate)
         caption = tournament.find('div', {'class': 'activity-tournament-caption'})
         tournamentDetails =  tournament.findAll('span', {'class': 'item-value'})
         singlesDraw = int(tournamentDetails[0].text.strip())
@@ -479,8 +489,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]] = ['']         # Opponent rank
                         tournamentDic[headings[3]] = ['']         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]] = [int(roundResult[1][0])]         # Opponent rank
-                        tournamentDic[headings[3]] = [int(roundResult[3][0])]         # Result (W or L)
+                        tournamentDic[headings[1]] = [intTryParse(roundResult[1][0])]    # Opponent rank
+                        tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
 
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -600,8 +610,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]].append('')         # Opponent rank
                         tournamentDic[headings[3]].append('')         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]].append(int(roundResult[1][0]))         # Opponent rank
-                        tournamentDic[headings[3]].append(int(roundResult[3][0]))         # Result (W or L)
+                        tournamentDic[headings[1]].append(intTryParse(roundResult[1][0]))    # Opponent rank
+                        tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
                         
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -715,8 +725,8 @@ def write_Player_Activity(player, url):
                     tournamentDic[headings[1]].append('')         # Opponent rank
                     tournamentDic[headings[3]].append('')         # Result (W or L)
                 else:
-                    tournamentDic[headings[1]].append(int(roundResult[1][0]))         # Opponent rank
-                    tournamentDic[headings[3]].append(int(roundResult[3][0]))         # Result (W or L)
+                    tournamentDic[headings[1]].append(intTryParse(roundResult[1][0]))    # Opponent rank
+                    tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
 
                     if (roundResult[3][0] == 'L'):
                         playerWins = False
