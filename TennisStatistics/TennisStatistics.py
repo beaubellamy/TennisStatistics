@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 home = 'https://www.atpworldtour.com'
     
 def is_good_response(resp):
@@ -236,17 +236,24 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
     return playerProfile
 
 def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False):
+    """
+    Get the match statistics for each player.
+    """
 
     url = home+urlExtension
     content = get_html_content(url)
     html = BeautifulSoup(content, 'html.parser')
 
+    if (not html.findAll('tr', {'class': 'match-stats-row percent-on'})):
+        return tournamentDic
+        # No match stats available
+
     duration = html.find('td', {'class': 'time'}).text.strip().split(':')
     if (len(duration) >= 4):
         matchTime = float(duration[1])*60+float(duration[2])+float(duration[3])/60 # converts time to minutes
     else:
-        print ('duration has not been calculated')
-
+        matchTime = '-'
+        
     if (firstPass):
         tournamentDic['Match Duration'] = [matchTime]
     else:
@@ -263,22 +270,22 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
         if (firstPass):
 
             if (len(leftPlayer) > 1):
-                leftIn = leftPlayer[1].split('/')[0][1:]
-                leftAttempt = leftPlayer[1].split('/')[1][:-1]
+                leftIn = int(leftPlayer[1].split('/')[0][1:])
+                leftAttempt = int(leftPlayer[1].split('/')[1][:-1])
 
-                rightIn = rightPlayer[1].split('/')[0][1:]
-                rightAttempt = rightPlayer[1].split('/')[1][:-1]
+                rightIn = int(rightPlayer[1].split('/')[0][1:])
+                rightAttempt = int(rightPlayer[1].split('/')[1][:-1])
 
 
                 if (playerIsLeft):
-                    tournamentDic['Player '+key+' in'] = [leftIn]
-                    tournamentDic['Opponent '+key+' in'] = [rightIn]
+                    tournamentDic['Player '+key+' success'] = [leftIn]
+                    tournamentDic['Opponent '+key+' success'] = [rightIn]
 
                     tournamentDic['Player '+key+' attempts'] = [leftAttempt]
                     tournamentDic['Opponent '+key+' attempts'] = [rightAttempt]
                 else:
-                    tournamentDic['Player '+key+' in'] = [rightIn]
-                    tournamentDic['Opponent '+key+' in'] = [leftIn]
+                    tournamentDic['Player '+key+' success'] = [rightIn]
+                    tournamentDic['Opponent '+key+' success'] = [leftIn]
 
                     tournamentDic['Player '+key+' attempts'] = [rightAttempt]
                     tournamentDic['Opponent '+key+' attempts'] = [leftAttempt]
@@ -286,30 +293,30 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
             else:
 
                 if (playerIsLeft):
-                    tournamentDic['Player '+key] = [leftPlayer[0]]
-                    tournamentDic['Opponent '+key] = [rightPlayer[0]]
+                    tournamentDic['Player '+key] = [int(leftPlayer[0])]
+                    tournamentDic['Opponent '+key] = [int(rightPlayer[0])]
                 else:
-                    tournamentDic['Player '+key] = [rightPlayer[0]]
-                    tournamentDic['Opponent '+key] = [leftPlayer[0]]
+                    tournamentDic['Player '+key] = [int(rightPlayer[0])]
+                    tournamentDic['Opponent '+key] = [int(leftPlayer[0])]
 
         else:
             if (len(leftPlayer) > 1):
-                leftIn = leftPlayer[1].split('/')[0][1:]
-                leftAttempt = leftPlayer[1].split('/')[1][:-1]
+                leftIn = int(leftPlayer[1].split('/')[0][1:])
+                leftAttempt = int(leftPlayer[1].split('/')[1][:-1])
 
-                rightIn = rightPlayer[1].split('/')[0][1:]
-                rightAttempt = rightPlayer[1].split('/')[1][:-1]
+                rightIn = int(rightPlayer[1].split('/')[0][1:])
+                rightAttempt = int(rightPlayer[1].split('/')[1][:-1])
 
 
                 if (playerIsLeft):
-                    tournamentDic['Player '+key+' in'].append(leftIn)
-                    tournamentDic['Opponent '+key+' in'].append(rightIn)
+                    tournamentDic['Player '+key+' success'].append(leftIn)
+                    tournamentDic['Opponent '+key+' success'].append(rightIn)
 
                     tournamentDic['Player '+key+' attempts'].append(leftAttempt)
                     tournamentDic['Opponent '+key+' attempts'].append(rightAttempt)
                 else:
-                    tournamentDic['Player '+key+' in'].append(rightIn)
-                    tournamentDic['Opponent '+key+' in'].append(leftIn)
+                    tournamentDic['Player '+key+' success'].append(rightIn)
+                    tournamentDic['Opponent '+key+' success'].append(leftIn)
 
                     tournamentDic['Player '+key+' attempts'].append(rightAttempt)
                     tournamentDic['Opponent '+key+' attempts'].append(leftAttempt)
@@ -317,16 +324,20 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
             else:
 
                 if (playerIsLeft):
-                    tournamentDic['Player '+key].append(leftPlayer[0])
-                    tournamentDic['Opponent '+key].append(rightPlayer[0])
+                    tournamentDic['Player '+key].append(int(leftPlayer[0]))
+                    tournamentDic['Opponent '+key].append(int(rightPlayer[0]))
                 else:
-                    tournamentDic['Player '+key].append(rightPlayer[0])
-                    tournamentDic['Opponent '+key].append(leftPlayer[0])
+                    tournamentDic['Player '+key].append(int(rightPlayer[0]))
+                    tournamentDic['Opponent '+key].append(int(leftPlayer[0]))
 
 
     return tournamentDic
 
 def tournementSeries(argument):
+    """
+    Map the series labels to actual Tournament Series titles.
+    """
+
     switcher = {
         'grandslam': 'Grand Slam',
         '1000s': 'ATP Masters 1000',
@@ -334,7 +345,10 @@ def tournementSeries(argument):
         '250': 'ATP World Tour 250',
         'itf': 'ITF Tournament',
         'atp': 'Nitto ATP Finals',
+        'atpwt': 'ATP World Tour',
+        'challenger': 'ATP Challenger',
     }
+
     return switcher.get(argument, "Unknown")
 
 
@@ -363,25 +377,32 @@ def write_Player_Activity(player, url):
 
     for tournament in tournaments:
         
+        
         # Strip out the tournament details
-        Series = tournament.find('td', {'class': 'tourney-badge-wrapper'}).contents[1].attrs['src'].split('_')[1]
-        # ITF matches fail when trying to get match statistics because they aren't available
-        # ['grandslam', '1000s', '500', '250', 'itf', 'atp']
-        # ['Grand Slam', ...                        , 'Nitto ATP Finals' ]
-
-
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
         tournamentDate =  tournament.find('span', {'class': 'tourney-dates'}).text.strip().split('-')[0].strip()
-        print (tournamentTitle+': '+tournamentDate+' '+Series)
         caption = tournament.find('div', {'class': 'activity-tournament-caption'})
         tournamentDetails =  tournament.findAll('span', {'class': 'item-value'})
-        singlesDraw = tournamentDetails[0].text.strip()
-        doublesDraw = tournamentDetails[1].text.strip()
+        singlesDraw = int(tournamentDetails[0].text.strip())
+        doublesDraw = int(tournamentDetails[1].text.strip())
         surface = tournamentDetails[2].text.strip()
+        if (len(tournament.find('td', {'class': 'tourney-badge-wrapper'})) > 1):
+            Series = tournament.find('td', {'class': 'tourney-badge-wrapper'}).contents[1].attrs['src'].split('_')[1]
+        else:
+            Series = 'Likely Qualifying series'
+
+        bestOf = 3
+        if (Series == 'grandslam'):
+            bestOf = 5
+
 
         pointsEarned = caption.text.split()[3].replace(',','')
         rank = caption.text.split()[6].replace(',','')
+        if ('T' in rank):
+            rank = rank[:-1]
+        rank = int(rank)
+
         prizeMoneyEarned = caption.text.split()[9]
 
         if (len(tournamentDetails) > 4):
@@ -417,7 +438,7 @@ def write_Player_Activity(player, url):
             completed = 'Completed'
             playerWins = True
             matchStats = True
-            if (Series == 'itf'):
+            if (Series == 'itf' or Series == 'challenger'):
                 matchStats = False
 
             for index in range(1,len(row.contents),2):
@@ -440,6 +461,7 @@ def write_Player_Activity(player, url):
                     tournamentDic['Tournament'] = [tournamentTitle]
                     tournamentDic['Location'] = [location]
                     tournamentDic['Series'] = [tournementSeries(Series)]
+                    tournamentDic['Best of #'] = [bestOf]
                     tournamentDic['Date'] = [tournamentDate]
                     tournamentDic['Surface'] = [surface]
                     tournamentDic['# Singles Draw'] = [singlesDraw]
@@ -457,8 +479,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]] = ['']         # Opponent rank
                         tournamentDic[headings[3]] = ['']         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]] = [roundResult[1][0]]         # Opponent rank
-                        tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
+                        tournamentDic[headings[1]] = [int(roundResult[1][0])]         # Opponent rank
+                        tournamentDic[headings[3]] = [int(roundResult[3][0])]         # Result (W or L)
 
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -511,20 +533,20 @@ def write_Player_Activity(player, url):
 
                             if (len(roundResult[4][index]) <= 3 ):
                                 if (len(score) >= 2):
-                                    playerScore = score[0]
-                                    opponentScore = score[1]
-                                # This ignores the tie break result
+                                    playerScore = int(score[0])
+                                    opponentScore = int(score[1])
+                                    # This ignores the tie break result
                             else: # > 3
                                 if ('-' in score):
-                                    playerScore = score.split('-')[0]
-                                    opponentScore = score.split('-')[1]
+                                    playerScore = int(score.split('-')[0])
+                                    opponentScore = int(score.split('-')[1])
                                 elif (score.isnumeric()):
-                                    playerScore = score[0]
-                                    opponentScore = score[1]
+                                    playerScore = int(score[0])
+                                    opponentScore = int(score[1])
                                     # This ignores the tie break result 
                                 else:
                                     playerScore = -9
-                      
+                                    opponentScore = -9
 
                         tournamentDic[pKey] = [playerScore]
                         tournamentDic[oKey] = [opponentScore]
@@ -534,6 +556,12 @@ def write_Player_Activity(player, url):
                     if (matchStats):
                         matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                         get_matchStats(matchStatsUrl, playerWins, tournamentDic, firstRow)
+                    
+                        size = len(tournamentDic['Tournament'])
+                        for key in tournamentDic.keys():
+                            if (len(tournamentDic[key]) < size):
+                                tournamentDic[key].append('-')
+    
                     else:
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
@@ -547,6 +575,7 @@ def write_Player_Activity(player, url):
                     tournamentDic['Tournament'].append(tournamentTitle)
                     tournamentDic['Location'].append(location)
                     tournamentDic['Series'].append(tournementSeries(Series))
+                    tournamentDic['Best of #'].append(bestOf)
                     tournamentDic['Date'].append(tournamentDate)
                     tournamentDic['Surface'].append(surface)
                     tournamentDic['# Singles Draw'].append(singlesDraw)
@@ -571,8 +600,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]].append('')         # Opponent rank
                         tournamentDic[headings[3]].append('')         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
-                        tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+                        tournamentDic[headings[1]].append(int(roundResult[1][0]))         # Opponent rank
+                        tournamentDic[headings[3]].append(int(roundResult[3][0]))         # Result (W or L)
                         
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -625,19 +654,20 @@ def write_Player_Activity(player, url):
 
                             if (len(roundResult[4][index]) <= 3 ):
                                 if (len(score) >= 2):
-                                    playerScore = score[0]
-                                    opponentScore = score[1]
+                                    playerScore = int(score[0])
+                                    opponentScore = int(score[1])
                                     # This ignores the tie break result
                             else: # > 3
                                 if ('-' in score):
-                                    playerScore = score.split('-')[0]
-                                    opponentScore = score.split('-')[1]
+                                    playerScore = int(score.split('-')[0])
+                                    opponentScore = int(score.split('-')[1])
                                 elif (score.isnumeric()):
-                                    playerScore = score[0]
-                                    opponentScore = score[1]
+                                    playerScore = int(score[0])
+                                    opponentScore = int(score[1])
                                     # This ignores the tie break result 
                                 else:
                                     playerScore = -9
+                                    opponentScore = -9
                       
 
                         tournamentDic[pKey].append(playerScore)
@@ -649,6 +679,12 @@ def write_Player_Activity(player, url):
                     if (matchStats):
                         matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                         get_matchStats(matchStatsUrl, playerWins, tournamentDic)
+                        
+                        size = len(tournamentDic['Tournament'])
+                        for key in tournamentDic.keys():
+                            if (len(tournamentDic[key]) < size):
+                                tournamentDic[key].append('-')
+
                     else:
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
@@ -661,6 +697,7 @@ def write_Player_Activity(player, url):
                 tournamentDic['Tournament'].append(tournamentTitle)
                 tournamentDic['Location'].append(location)
                 tournamentDic['Series'].append(tournementSeries(Series))
+                tournamentDic['Best of #'].append(bestOf)
                 tournamentDic['Date'].append(tournamentDate)
                 tournamentDic['Surface'].append(surface)
                 tournamentDic['# Singles Draw'].append(singlesDraw)
@@ -678,8 +715,8 @@ def write_Player_Activity(player, url):
                     tournamentDic[headings[1]].append('')         # Opponent rank
                     tournamentDic[headings[3]].append('')         # Result (W or L)
                 else:
-                    tournamentDic[headings[1]].append(roundResult[1][0])         # Opponent rank
-                    tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+                    tournamentDic[headings[1]].append(int(roundResult[1][0]))         # Opponent rank
+                    tournamentDic[headings[3]].append(int(roundResult[3][0]))         # Result (W or L)
 
                     if (roundResult[3][0] == 'L'):
                         playerWins = False
@@ -732,20 +769,20 @@ def write_Player_Activity(player, url):
 
                         if (len(roundResult[4][index]) <= 3 ):
                             if (len(score) >= 2):
-                                playerScore = score[0]
-                                opponentScore = score[1]
+                                playerScore = int(score[0])
+                                opponentScore = int(score[1])
                                 # This ignores the tie break result
                         else: # > 3
                             if ('-' in score):
-                                playerScore = score.split('-')[0]
-                                opponentScore = score.split('-')[1]
+                                playerScore = int(score.split('-')[0])
+                                opponentScore = int(score.split('-')[1])
                             elif (score.isnumeric()):
-                                playerScore = score[0]
-                                opponentScore = score[1]
+                                playerScore = int(score[0])
+                                opponentScore = int(score[1])
                                 # This ignores the tie break result 
                             else:
                                 playerScore = -9
-                      
+                                opponentScore = -9
 
                     tournamentDic[pKey].append(playerScore)
                     tournamentDic[oKey].append(opponentScore)
@@ -756,6 +793,12 @@ def write_Player_Activity(player, url):
                 if (matchStats):
                     matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                     get_matchStats(matchStatsUrl, playerWins, tournamentDic)
+                    
+                    size = len(tournamentDic['Tournament'])
+                    for key in tournamentDic.keys():
+                        if (len(tournamentDic[key]) < size):
+                            tournamentDic[key].append('-')
+
                 else:
                     size = len(tournamentDic['Tournament'])
                     for key in tournamentDic.keys():
@@ -769,8 +812,8 @@ def write_Player_Activity(player, url):
 
     # Write the dataframe to a csv file.
     playerName = player.text.strip().replace(' ','_')
-    filename =  filePath+'\Player Activity\\'+playerName+'.xlsx'
-    #filename = filePath+'\Players Activity\\'+playerName+'.xlsx'
+    #filename =  filePath+'\Player Activity\\'+playerName+'.xlsx'
+    filename = filePath+'\Players Activity\\'+playerName+'.xlsx'
                 
     sheet = 'Activity'
     profileDateFrame.to_excel(filename, sheet_name=sheet, index=False)
