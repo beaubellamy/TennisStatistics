@@ -30,6 +30,10 @@ home = 'https://www.atpworldtour.com'
 
 
 def intTryParse(value):
+    """
+    Parser function to test for integer values
+    """
+
     try:
         return int(value)
     except ValueError:
@@ -93,6 +97,7 @@ def get_html_content(url, multiplier=1):
                 return resp.content 
             else:
                 attempts += 1
+                Print ('attempt: '+attempts)
                 time.sleep(randomSleep*multiplier*attempts)
                 resp = get(url)
 
@@ -109,7 +114,7 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
     """
     Append the dataframe to an existing file.
     
-    This alllows batch processing of the dataframes and 
+    This allows batch processing of the dataframes and 
     reduces the impact of lost data when there is an error.
     """
 
@@ -131,23 +136,24 @@ def append_DF_To_CSV(df, csvFilePath, sep=","):
         df.to_csv(csvFilePath, mode='a', index=False, sep=sep, header=False)
 
 
-def get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank):
+def get_Players(mens_ATP_Ranking,rankDate,startRank,endRank):
     """
-    Get the players home page
+    Get a list of players from the ranks.
     """
 
     rankPage = mens_ATP_Ranking+'?rankDate='+rankDate.replace('.','-')+'&countryCode=all&rankRange='+str(startRank)+'-'+str(endRank)
     content = get_html_content(rankPage)
     html = BeautifulSoup(content, 'html.parser')
-    # Find all the players
     
+    # Find all the players    
     players = html.findAll('td', {'class': 'player-cell'})
 
     return players
 
 def get_Player_Details(player, playerProfile, url, firstPass = False):
     """
-    Update the player profile dictionary with the biographical information for the current player.
+    Update the player profile dictionary with the biographical information 
+    and basic career stats for the current player.
     """
     url += '/player-activity'
     content = get_html_content(url)
@@ -155,7 +161,7 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
     
     # Find all the items in the main banner.
     profile = html.findAll('div', {'class': 'wrap'})
-    # Get the main statistics
+    # Get the basic statistics
     statsTable = html.findAll('div', {'class': 'stat-value'})
 
     if (firstPass):
@@ -167,6 +173,7 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
 
             # Replace the value when key is ...
             if (key == 'Age'):
+                # Strip out the age and date of birth
                 value = item.contents[3].text.strip().split()[0]
                 playerProfile[key] = [value]
                 key = 'D.O.B'
@@ -180,7 +187,7 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
                 # Strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
-            # Add the value to the dictionary
+            # Add the values to the dictionary
             playerProfile[key] = [value]
 
         
@@ -209,20 +216,21 @@ def get_Player_Details(player, playerProfile, url, firstPass = False):
 
             # Replace the value when key is ...
             if (key == 'Age'):
+                # Strip out the age and date of birth.
                 value = item.contents[3].text.strip().split()[0]
                 playerProfile[key].append(value)
                 key = 'D.O.B'
                 value = item.contents[3].text.strip().split()[1]
 
             if (key == 'Weight'):
-                # strip out the S.I. units
+                # Strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
             if (key == 'Height'):
-                # strip out the S.I. units
+                # Strip out the S.I. units
                 value = item.contents[3].text.strip().split('(')[-1].split(')')[0]
 
-            # Add the value to the dictionary
+            # Add the values to the dictionary
             playerProfile[key].append(value)
 
         
@@ -259,7 +267,8 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
     duration = html.find('td', {'class': 'time'}).text.strip().split(':')
     if (len(duration) >= 4):
-        matchTime = float(duration[1])*60+float(duration[2])+float(duration[3])/60 # converts time to minutes
+        # Convert time to minutes
+        matchTime = float(duration[1])*60+float(duration[2])+float(duration[3])/60 
     else:
         matchTime = '-'
         
@@ -270,22 +279,26 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
     stats = html.findAll('tr', {'class': 'match-stats-row percent-on'})
 
+    # Cycle through each statistic
     for stat in stats:
         key = stat.contents[5].text.strip()
 
+        # Seperate out each player statistics
         leftPlayer = stat.contents[1].text.strip().split()
         rightPlayer = stat.contents[9].text.strip().split()
 
         if (firstPass):
 
             if (len(leftPlayer) > 1):
+                # If the statistic has more than 1 number, seperate out 
+                # the raw numbers from the percentages.
                 leftIn = int(leftPlayer[1].split('/')[0][1:])
                 leftAttempt = int(leftPlayer[1].split('/')[1][:-1])
 
                 rightIn = int(rightPlayer[1].split('/')[0][1:])
                 rightAttempt = int(rightPlayer[1].split('/')[1][:-1])
 
-
+                # Determine which statistic corresponds to the player and the opponent.
                 if (playerIsLeft):
                     tournamentDic['Player '+key+' success'] = [leftIn]
                     tournamentDic['Opponent '+key+' success'] = [rightIn]
@@ -301,6 +314,7 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
             else:
 
+                # Determine which statistic corresponds to the player and the opponent.
                 if (playerIsLeft):
                     tournamentDic['Player '+key] = [int(leftPlayer[0])]
                     tournamentDic['Opponent '+key] = [int(rightPlayer[0])]
@@ -310,13 +324,15 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
         else:
             if (len(leftPlayer) > 1):
+                # If the statistic has more than 1 number, seperate out 
+                # the raw numbers from the percentages.
                 leftIn = int(leftPlayer[1].split('/')[0][1:])
                 leftAttempt = int(leftPlayer[1].split('/')[1][:-1])
 
                 rightIn = int(rightPlayer[1].split('/')[0][1:])
                 rightAttempt = int(rightPlayer[1].split('/')[1][:-1])
-
-
+                
+                # Determine which statistic corresponds to the player and the opponent.                
                 if (playerIsLeft):
                     tournamentDic['Player '+key+' success'].append(leftIn)
                     tournamentDic['Opponent '+key+' success'].append(rightIn)
@@ -332,6 +348,7 @@ def get_matchStats(urlExtension, playerIsLeft, tournamentDic, firstPass = False)
 
             else:
 
+                # Determine which statistic corresponds to the player and the opponent.
                 if (playerIsLeft):
                     tournamentDic['Player '+key].append(int(leftPlayer[0]))
                     tournamentDic['Opponent '+key].append(int(rightPlayer[0]))
@@ -354,7 +371,7 @@ def tournementSeries(argument):
         '250': 'ATP World Tour 250',
         'itf': 'ITF Tournament',
         'atp': 'Nitto ATP Finals',
-        'atpwt': 'ATP World Tour',
+        'atpwt': 'ATP World Tour', # Pre 2009
         'challenger': 'ATP Challenger',
     }
 
@@ -383,10 +400,9 @@ def write_Player_Activity(player, url):
     # Flag to identify when the first tournament has been read
     firstTournament = True
 
-
+    # Cycle through each tournament played.
     for tournament in tournaments:
-        
-        
+                
         # Strip out the tournament details
         tournamentTitle = tournament.find('td', {'class': 'title-content'}).contents[1].text.strip()
         location = tournament.find('span', {'class': 'tourney-location'}).text.strip().split(',')[0]
@@ -406,9 +422,9 @@ def write_Player_Activity(player, url):
         if (Series == 'grandslam'):
             bestOf = 5
 
-
         pointsEarned = caption.text.split()[3].replace(',','')
         rank = caption.text.split()[6].replace(',','')
+        # Strip the Tie flag from the rank
         if ('T' in rank):
             rank = rank[:-1]
         rank = int(rank)
@@ -434,33 +450,38 @@ def write_Player_Activity(player, url):
         # Replace the W-L heading with result
         headings[-2] = 'Result'
         
+        # Find all the rounds played by the current player
         rows = table.findAll('tr')
 
         values = []
         firstRow = True
 
-        if (not rows):          # no results found
+        if (not rows):
             continue
+            # No results found
 
         # Go through each round and extract the opponents details and the scores.
         for row in rows:
 
             completed = 'Completed'
             playerWins = True
-            matchStats = True
-            if (Series == 'itf' or Series == 'challenger'):
-                matchStats = False
+            matchStats = False
+            # Check for a url to the match stats page exists.
+            if (row.contents[9].find('a', href=True) is not None):
+                matchStatsUrl = row.contents[9].find('a', href=True)['href']
+                matchStats = True
 
+            # Append the round results 
             for index in range(1,len(row.contents),2):
                 values.append(row.contents[index].text.split())
             
             # Only need to use the last 5 values 
             roundResult = values[-5:]
             
-            if ('(INV)' in roundResult[4] or    # Ref: Grigor Dimitrov
-                '(ABN)' in roundResult[4] or    # Ref: Ryan Harrison
-                '(UNP)' in roundResult[4] or    # Ref: Feliciano Lopez
-                '(WEA)' in roundResult[4] or    # Ref: Dusan Lajovic
+            if ('(INV)' in roundResult[4] or    # Ref: Grigor Dimitrov [Knoxville 2009] ?= invitation.
+                '(ABN)' in roundResult[4] or    # Ref: Ryan Harrison [Col vs USA WG playoff 2010] ?= Abandoned (presumably because the result is already conclusive)
+                '(UNP)' in roundResult[4] or    # Ref: Feliciano Lopez [USA vs ESP WG QF 2011] ?
+                '(WEA)' in roundResult[4] or    # Ref: Dusan Lajovic [Tukey F2 2011] ?
                 'Bye' in roundResult[2][0]):
                 break
                 # If the round is ruled invalid, ignore the whole round (No results are published)
@@ -489,8 +510,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]] = ['']         # Opponent rank
                         tournamentDic[headings[3]] = ['']         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]] = [intTryParse(roundResult[1][0])]    # Opponent rank
-                        tournamentDic[headings[3]] = [roundResult[3][0]]         # Result (W or L)
+                        tournamentDic[headings[1]] = [intTryParse(roundResult[1][0])]   # Opponent rank
+                        tournamentDic[headings[3]] = [roundResult[3][0]]                # Result (W or L)
 
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -516,25 +537,27 @@ def write_Player_Activity(player, url):
 
                         #tournamentDic[key] = [score]                    
 
-
+                    # Get the results for each set
                     for index in range(5):
                         pKey = 'Player Set '+str(index+1)
                         oKey = 'Opponent Set '+str(index+1)
                                                 
+                        # Deal with unexpected values in the results.
                         if ('(RET)' in roundResult[4]):
                             completed = 'Retired'
                             roundResult[4].remove('(RET)')
 
                         if ('(W/O)' in roundResult[4]):
                             completed = 'Walkover'
-                            matchStats = False
+                            #matchStats = False
                             roundResult[4].remove('(W/O)')
 
                         if ('(DEF)' in roundResult[4]):
                             completed = 'Incomplete'
-                            matchStats = False
+                            #matchStats = False
                             roundResult[4].remove('(DEF)')
                             
+                        # Seperate the player score from the opponent score
                         playerScore = '-'
                         opponentScore = '-'
 
@@ -564,15 +587,16 @@ def write_Player_Activity(player, url):
                     tournamentDic['Match Completed'] = [completed]
                     # Get match statistics
                     if (matchStats):
-                        matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                         get_matchStats(matchStatsUrl, playerWins, tournamentDic, firstRow)
                     
+                        # Check the keys are all the same length
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
                             if (len(tournamentDic[key]) < size):
                                 tournamentDic[key].append('-')
     
                     else:
+                        # Update the match statistics keys.
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
                             if (len(tournamentDic[key]) < size):
@@ -610,8 +634,8 @@ def write_Player_Activity(player, url):
                         tournamentDic[headings[1]].append('')         # Opponent rank
                         tournamentDic[headings[3]].append('')         # Result (W or L)
                     else:
-                        tournamentDic[headings[1]].append(intTryParse(roundResult[1][0]))    # Opponent rank
-                        tournamentDic[headings[3]].append(roundResult[3][0])         # Result (W or L)
+                        tournamentDic[headings[1]].append(intTryParse(roundResult[1][0]))   # Opponent rank
+                        tournamentDic[headings[3]].append(roundResult[3][0])                # Result (W or L)
                         
                         if (roundResult[3][0] == 'L'):
                             playerWins = False
@@ -638,24 +662,27 @@ def write_Player_Activity(player, url):
                     #    tournamentDic[key].append(score)
                        
                     
+                    # Get the results for each set
                     for index in range(5):
                         pKey = 'Player Set '+str(index+1)
                         oKey = 'Opponent Set '+str(index+1)
                                                 
+                        # Deal with unexpected values in the results.
                         if ('(RET)' in roundResult[4]):
                             completed = 'Retired'
                             roundResult[4].remove('(RET)')
 
                         if ('(W/O)' in roundResult[4]):
                             completed = 'Walkover'
-                            matchStats = False
+                            #matchStats = False
                             roundResult[4].remove('(W/O)')
 
                         if ('(DEF)' in roundResult[4]):
                             completed = 'Incomplete'
-                            matchStats = False
+                            #matchStats = False
                             roundResult[4].remove('(DEF)')
 
+                        # Seperate the player score from the opponent score
                         playerScore = '-'
                         opponentScore = '-'
 
@@ -687,15 +714,16 @@ def write_Player_Activity(player, url):
 
                     # Get match statistics
                     if (matchStats):
-                        matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                         get_matchStats(matchStatsUrl, playerWins, tournamentDic)
                         
+                        # Check the keys are all the same length
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
                             if (len(tournamentDic[key]) < size):
                                 tournamentDic[key].append('-')
 
                     else:
+                        # Update the match statistics keys.
                         size = len(tournamentDic['Tournament'])
                         for key in tournamentDic.keys():
                             if (len(tournamentDic[key]) < size):
@@ -752,25 +780,27 @@ def write_Player_Activity(player, url):
 
                 #    tournamentDic[key].append(score)
 
-
+                # Get the results for each set
                 for index in range(5):
                     pKey = 'Player Set '+str(index+1)
                     oKey = 'Opponent Set '+str(index+1)
                                                 
+                    # Deal with unexpected values in the results.
                     if ('(RET)' in roundResult[4]):
                         completed = 'Retired'
                         roundResult[4].remove('(RET)')
 
                     if ('(W/O)' in roundResult[4]):
                         completed = 'Walkover'
-                        matchStats = False
+                        #matchStats = False
                         roundResult[4].remove('(W/O)')
 
                     if ('(DEF)' in roundResult[4]):
                         completed = 'Incomplete'
-                        matchStats = False
+                        #matchStats = False
                         roundResult[4].remove('(DEF)')
 
+                    # Seperate the player score from the opponent score
                     playerScore = '-'
                     opponentScore = '-'
 
@@ -801,15 +831,16 @@ def write_Player_Activity(player, url):
 
                 # Get match statistics
                 if (matchStats):
-                    matchStatsUrl = row.contents[9].find('a', href=True).attrs['href']
                     get_matchStats(matchStatsUrl, playerWins, tournamentDic)
                     
+                    # Check the keys are all the same length
                     size = len(tournamentDic['Tournament'])
                     for key in tournamentDic.keys():
                         if (len(tournamentDic[key]) < size):
                             tournamentDic[key].append('-')
 
                 else:
+                    # Update the match statistics keys.
                     size = len(tournamentDic['Tournament'])
                     for key in tournamentDic.keys():
                         if (len(tournamentDic[key]) < size):
@@ -834,7 +865,7 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
     the wins and losses for various statistics.
     """
 
-    # Add teh win loss extension
+    # Add the win loss extension
     url+= '/fedex-atp-win-loss'
 
     content = get_html_content(url)
@@ -876,10 +907,6 @@ def get_Win_Loss_Stats(player, playerProfile, url, firstPass=False):
 
     # Return the updated dictionary
     return playerProfile
-
-
-
-
 
 def get_Player_Stats(url,playerProfile, firstPass=False):
     """
@@ -934,7 +961,7 @@ def get_Ranking_History(player, url, firstDate, rankHistory, firstPass=False):
     date = datetime.strptime(firstDate,'%Y.%m.%d')
     previous = date + timedelta(days=7)
 
-    # Relevant data starts and index 1
+    # Relevant data starts at index 1
     index = 1
 
     # Define the stopping point of interest
@@ -996,26 +1023,25 @@ if __name__ == '__main__':
     endRank = 500
 
     # Get a list of all players in the rank range
-    players = get_Players_Page(mens_ATP_Ranking,rankDate,startRank,endRank)
+    players = get_Players(mens_ATP_Ranking,rankDate,startRank,endRank)
 
     # Loop through each player profiles
     for player in players:
         urlExtension = player.contents[1].attrs['href']
             
-        # Loop through the profile tabs
-        extension = urlExtension.split('/')
-
         # Remove the last element from the url string
+        extension = urlExtension.split('/')
         del extension[-1]
                
         # Add the extension to the url
         urlExtension = '/'.join(extension)
-        print(home+urlExtension)
+        #print(home+urlExtension)
         url = home+urlExtension
 
-        # Get the details from each tab
+        # Get the details from the player activity tab
         write_Player_Activity(player, url)
 
+        # Get the information from the remaining tabs
         if (firstPass):
             playerProfile = get_Player_Details(player, playerProfile, url, firstPass=firstPass)                
             playerProfile = get_Win_Loss_Stats(player, playerProfile, url,firstPass=firstPass)
@@ -1036,7 +1062,7 @@ if __name__ == '__main__':
         size = len(playerProfile['Player'])
         for key, _ in playerProfile.items():
             if (len(playerProfile[key]) < size):
-                playerProfile[key].append('--')
+                playerProfile[key].append('-')
 
     # Convert dictionaries to data frames
     playerStats = pd.DataFrame.from_dict(playerProfile, orient='columns')
