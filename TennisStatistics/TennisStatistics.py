@@ -23,8 +23,8 @@ import os
 import warnings
 import xlwt
 
-#filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
-filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
+filePath = 'C:\\Users\\Beau\\Documents\\DataScience\\Tennis\\Ouput Files\\'
+#filePath = 'C:\\Users\\bbel1\\Documents\\SourceCode\\TennisStatistics\\TennisStatistics\\'
 home = 'https://www.atpworldtour.com'
     
 
@@ -75,7 +75,7 @@ def get_html_content(url, multiplier=1):
                 return resp.content 
             else:
                 attempts += 1
-                Print ('attempt: '+attempts)
+                print ('attempt: '+attempts)
                 time.sleep(randomSleep*multiplier*attempts)
                 resp = get(url)
 
@@ -483,8 +483,12 @@ def write_Player_Activity(player, url):
 
             # Append the round results 
             for index in range(1,len(row.contents),2):
-                values.append(row.contents[index].text.split())
-            
+                try:
+                    values.append(row.contents[index].text.split())
+                except AttributeError:
+                    continue
+                 
+
             # Only need to use the last 5 values 
             roundResult = values[-5:]
             
